@@ -99,7 +99,7 @@ class DifferentialOperators():
         return self.D_x, self.D_y, self.D_z, self.L
 
 
-def gradient(Nx):
+def gradient(Nx, boundary_condition):
     
     """
     Generate a discretized gradient matrix.

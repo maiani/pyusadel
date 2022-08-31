@@ -138,7 +138,7 @@ def gen_assemble_fun(
             + (tau_so_inv + tau_sf_inv * np.cos(2 * theta) / 2) * M_x * M_y / M_0
         )
 
-    def f_n(theta, M_x, M_y, h_x, h_y, Delta, omega_n, T):
+    def F_n(theta, M_x, M_y, h_x, h_y, Delta, omega_n, T):
         M_0 = np.sqrt(1 + M_x ** 2 + M_y ** 2)
 
         return (
@@ -182,7 +182,7 @@ def gen_assemble_fun(
         df2_dtheta,
         df2_dM_x,
         df2_dM_y,
-        f_n,
+        F_n,
     )
 
 
@@ -481,14 +481,14 @@ def solve_usadel_self_consistent(
 
         res = np.sum(np.abs((Delta - old_Delta))) / np.sum(np.abs(Delta))
 
-        f_n = assemble_fun[-1]
+        F_n = assemble_fun[-1]
 
-        f_sn = 0
+        F_sn = 0
         for n in range(omega_N):
-            f_sn += f_n(theta[n], M_x[n], M_y[n], h_x, h_y, Delta, omega_ax[n], T)
+            F_sn += F_n(theta[n], M_x[n], M_y[n], h_x, h_y, Delta, omega_ax[n], T)
 
         print(
-            f"{iter_n:3d}    Max Delta: {Delta.max():4.3f}    Residual: {res:3.2e}    Free energy: {f_sn:3.2e}"
+            f"{iter_n:3d}    Max Delta: {Delta.max():4.3f}    Residual: {res:3.2e}    Free energy: {F_sn:3.2e}"
         )
 
         if res < tol:
@@ -498,4 +498,4 @@ def solve_usadel_self_consistent(
         elif iter_n > max_iter_delta:
             print("Max iteration reached")
             break
-    return (theta, M_x, M_y, Delta, omega_ax, f_sn)
+    return (theta, M_x, M_y, Delta, omega_ax, F_sn)
