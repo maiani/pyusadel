@@ -9,7 +9,7 @@ from scipy import sparse
 from scipy.sparse import linalg as sla
 from numba import jit
 from .findiff import DifferentialOperators
-from .usadel import gen_assemble_fun, solve_usadel, solve_usadel_self_consistent
+from .usadel import gen_assemble_fns, solve_usadel, solve_usadel_self_consistent
 
 
 class UsadelProblem:
@@ -24,6 +24,7 @@ class UsadelProblem:
         diff_ops: DifferentialOperators,
         h_x: np.ndarray,
         h_y: np.ndarray,
+        h_z: np.ndarray,
         tau_sf_inv: np.ndarray,
         tau_so_inv: np.ndarray,
         D: float,
@@ -37,6 +38,7 @@ class UsadelProblem:
         if (
             h_x.shape != (Nsites,)
             or h_y.shape != (Nsites,)
+            or h_z.shape != (Nsites,)
             or tau_sf_inv.shape != (Nsites,)
             or tau_so_inv.shape != (Nsites,)
         ):
@@ -44,6 +46,7 @@ class UsadelProblem:
         else:
             self.h_x = h_x
             self.h_y = h_y
+            self.h_z = h_z
             self.tau_sf_inv = tau_sf_inv
             self.tau_so_inv = tau_so_inv
 
@@ -51,9 +54,12 @@ class UsadelProblem:
         self.T = T
         self.T_c0 = 1
 
-        self.assemble_fun = gen_assemble_fun(
+        self.assemble_fns = gen_assemble_fns(
             D=self.D,
             diff_ops=self.diff_ops,
+            h_x=self.h_x,
+            h_y=self.h_y,
+            h_z=self.h_z,
             tau_so_inv=self.tau_so_inv,
             tau_sf_inv=self.tau_sf_inv,
         )
@@ -84,13 +90,15 @@ class UsadelProblem:
             self.theta_i,
             self.M_x_i,
             self.M_y_i,
+            self.M_z_i,
             self.Delta,
             self._omega_ax_i,
             self.F_sn,
         ) = solve_usadel_self_consistent(
-            self.assemble_fun,
+            self.assemble_fns,
             self.h_x,
             self.h_y,
+            self.h_z,
             self.Delta,
             self.T,
             omega_N=omega_N,
@@ -104,6 +112,7 @@ class UsadelProblem:
         self.theta_r = np.ones((omega_N, self.Nsites), dtype=complex)
         self.M_x_r = np.zeros((omega_N, self.Nsites), dtype=complex)
         self.M_y_r = np.zeros((omega_N, self.Nsites), dtype=complex)
+        self.M_z_r = np.zeros((omega_N, self.Nsites), dtype=complex)
 
     def get_omega_ax_r(self):
         return np.real(1j * self._omega_ax_r)
@@ -115,24 +124,24 @@ class UsadelProblem:
         print_exit_status: bool = False,
         use_dense: bool = False,
     ):
-        for omega_idx in range(self._omega_ax_r.shape[0]):
-            solve_usadel(
-                assemble_fun=self.assemble_fun[:-1],
-                theta=self.theta_r,
-                M_x=self.M_x_r,
-                M_y=self.M_y_r,
-                h_x=self.h_x,
-                h_y=self.h_y,
-                Delta=self.Delta,
-                omega_ax=self._omega_ax_r,
-                omega_idx=omega_idx,
-                tol=tol,
-                max_iter=max_iter,
-                print_exit_status=print_exit_status,
-                use_dense=use_dense,
-            )
 
-            self.M_0_r = np.sqrt(1 + self.M_x_r**2 + self.M_y_r**2)
+        solve_usadel(
+            assemble_fns=self.assemble_fns,
+            h_x=self.h_x,
+            h_y=self.h_y,
+            h_z=self.h_z,
+            theta=self.theta_r,
+            M_x=self.M_x_r,
+            M_y=self.M_y_r,
+            M_z=self.M_z_r,
+            Delta=self.Delta,
+            omega_ax=self._omega_ax_r,
+            tol=tol,
+            max_iter=max_iter,
+            print_exit_status=print_exit_status,
+            use_dense=use_dense,
+        )
+        self.M_0_r = np.sqrt(1 + self.M_x_r**2 + self.M_y_r**2 + self.M_z_r**2)
 
     def get_dos(self):
         return np.real(self.M_0_r * np.cos(self.theta_r)) / 2
@@ -165,9 +174,18 @@ class UsadelProblem:
                 / 4,
             )
         elif direction == "z":
-            raise Exception("Not supported yet.")
-            # return (np.real(self.M_0_r * np.cos(self.theta_r) + 1j * self.M_z_r * np.sin(self.theta_r))/4,
-            #         np.real(self.M_0_r * np.cos(self.theta_r) - 1j * self.M_z_r * np.sin(self.theta_r))/4)
+            return (
+                np.real(
+                    self.M_0_r * np.cos(self.theta_r)
+                    + 1j * self.M_z_r * np.sin(self.theta_r)
+                )
+                / 4,
+                np.real(
+                    self.M_0_r * np.cos(self.theta_r)
+                    - 1j * self.M_z_r * np.sin(self.theta_r)
+                )
+                / 4,
+            )
         else:
             raise Exception("Error.")
 
@@ -176,7 +194,7 @@ class UsadelProblem:
             np.real(self.M_0_r * np.sin(self.theta_r)),
             np.real(-1j * self.M_x_r * np.cos(self.theta_r)),
             np.real(-1j * self.M_y_r * np.cos(self.theta_r)),
-            None,  # np.real(-1j * self.M_z_r * np.cos(self.theta_r),
+            np.real(-1j * self.M_z_r * np.cos(self.theta_r)),
         )
 
     def generate_self_energy(self):
