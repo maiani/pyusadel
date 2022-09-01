@@ -99,7 +99,7 @@ class DifferentialOperators:
         return self.D_x, self.D_y, self.D_z, self.L
 
 
-def gradient(Nx, boundary_condition):
+def gradient(Nx, dx, boundary_condition):
 
     """
     Generate a discretized gradient matrix.
@@ -138,11 +138,11 @@ def gradient(Nx, boundary_condition):
     else:
         raise ("Not supported")
 
-    D_x = D_x / 2
+    D_x = D_x / (2 * dx)
     return D_x.tocsr()
 
 
-def laplacian(Nx, boundary_condition):
+def laplacian(Nx, dx, boundary_condition):
     """
     Generate a discretized Laplacian matrix with boundary conditions.
 
@@ -175,5 +175,7 @@ def laplacian(Nx, boundary_condition):
 
     else:
         raise ("Not supported")
+
+    L_x = L_x / dx**2
 
     return L_x.tocsr()

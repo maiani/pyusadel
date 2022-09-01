@@ -13,9 +13,9 @@ from .usadel import gen_assemble_fns, solve_usadel, solve_usadel_self_consistent
 
 
 class UsadelProblem:
-    """
-    This class provide a simple way to define and solve a Usadel problem.
-    It is a wrapper for the procedural functions.
+    """Simple way to define and solve a Usadel problem.
+
+    This class is is a wrapper for the procedural functions.
     """
 
     def __init__(
@@ -32,6 +32,32 @@ class UsadelProblem:
         T_c0: float = 1,
         Gamma: float = 0,
     ):
+        """
+        Parameters
+        ----------
+        Nsites: int
+            Number of sites in the system.
+        diff_ops: DifferentialOperators
+            Differential operators on the lattice.
+        h_x: np.ndarray
+            Zeeman field (x component)
+        h_y: np.ndarray
+            Zeeman field (y component)
+        h_z: np.ndarray
+            Zeeman field (z component)
+        tau_sf_inv: np.ndarray
+            Inverse of spin-flip scattering time.
+        tau_so_inv: np.ndarray
+            Inverse of spin-orbit scattering time.
+        D: float
+            Diffusion constant.
+        T: float
+            Temperature.
+        T_c0: float (default 1)
+            Critical temperature in absence of pair-breaking.
+        Gamma: float (default 0)
+            Dynes parameter.
+        """
 
         self.Nsites = Nsites
         self.diff_ops = diff_ops
@@ -53,7 +79,7 @@ class UsadelProblem:
 
         self.D = D
         self.T = T
-        self.T_c0 = 1
+        self.T_c0 = T_c0
         self.Gamma = Gamma
 
         self.assemble_fns = gen_assemble_fns(
@@ -85,8 +111,23 @@ class UsadelProblem:
         self.M_z_r = None
         self.M_0_r = None
 
-    def solve_self_consistent(self, omega_N: int = None):
+        # Calculate useful parameters
+        self.Delta_00 = self.T_c0 * 1.7652
+        self.h_c0 = self.Delta_00 / np.sqrt(2)
+        self.xi_00 = np.sqrt(self.D / self.Delta_00)
+
+    def solve_self_consistent(
+        self,
+        omega_N: int = None,
+        gamma=1,
+        tol_g: float = 1e-6,
+        max_iter_g: int = 1000,
+        tol_Delta: float = 1e-6,
+        max_iter_Delta: int = 100,
+        verbose: bool = False,
+    ):
         if not omega_N:
+            # TODO: implement something smartere here
             omega_N = 100
 
         (
@@ -104,13 +145,29 @@ class UsadelProblem:
             self.h_z,
             self.Delta,
             self.T,
+            T_c0=self.T_c0,
             omega_N=omega_N,
-            # tol=1e-6,
-            # max_iter=100,
-            # max_iter_delta=100,
+            gamma=gamma,
+            tol_g=tol_g,
+            max_iter_g=max_iter_g,
+            tol_Delta=tol_Delta,
+            max_iter_Delta=max_iter_Delta,
+            verbose=verbose,
         )
 
     def set_real_omega_ax(self, omega_min, omega_max, omega_N):
+        """
+        Set the energy axis (real frequencies).
+        Parameters:
+        -------
+        omega_min : float
+            Minimum energy
+        omega_max : float
+            Minimum energy
+        omega_N : int
+            Number of points
+        """
+
         self._omega_ax_r = -1j * np.linspace(omega_min, omega_max, omega_N)
         self.theta_r = np.ones((omega_N, self.Nsites), dtype=complex)
         self.M_x_r = np.zeros((omega_N, self.Nsites), dtype=complex)
@@ -118,16 +175,19 @@ class UsadelProblem:
         self.M_z_r = np.zeros((omega_N, self.Nsites), dtype=complex)
 
     def get_omega_ax_r(self):
+        """
+        Returns the energy axis (real frequencies).
+        """
         return np.real(1j * self._omega_ax_r)
 
     def solve_spectral(
         self,
+        gamma: float = 1,
         tol: float = 1e-6,
         max_iter: int = 1000,
         print_exit_status: bool = False,
         use_dense: bool = False,
     ):
-
         solve_usadel(
             assemble_fns=self.assemble_fns,
             h_x=self.h_x,
@@ -139,6 +199,7 @@ class UsadelProblem:
             M_z=self.M_z_r,
             Delta=self.Delta,
             omega_ax=self._omega_ax_r,
+            gamma=gamma,
             tol=tol,
             max_iter=max_iter,
             print_exit_status=print_exit_status,

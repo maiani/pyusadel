@@ -97,7 +97,7 @@ def gen_assemble_fns(
         )
 
     def df1_dM_x(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
-        return D * (
+        return +D * (
             sparse.diags(L @ M_0)
             + sparse.diags(M_x * (L @ (M_x / M_0)))
             - sparse.diags((M_x / M_0) * (L @ M_x))
@@ -105,7 +105,7 @@ def gen_assemble_fns(
         ) + sparse.diags(
             +2 * (Delta * np.sin(theta) + (omega_n + Gamma) * np.cos(theta))
             - 2 * h_x * (M_x / M_0) * np.sin(theta)
-            + (tau_so_inv + tau_sf_inv * np.cos(2 * theta) / 2) * M_x**2 / M_0
+            + (tau_so_inv + tau_sf_inv * np.cos(2 * theta) / 2) * (M_x**2 / M_0 + M_0)
         )
 
     def df1_dM_y(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
@@ -152,6 +152,8 @@ def gen_assemble_fns(
         )
 
     def F_n(h_x, h_y, h_z, theta, M_x, M_y, M_z, Delta, omega_n, T):
+        # TODO: add Dynes parameter
+
         M_0 = np.sqrt(1 + M_x**2 + M_y**2)
 
         return (
@@ -163,10 +165,11 @@ def gen_assemble_fns(
                 + 4 * (h_y * M_y + h_x * M_x) * np.sin(theta)
                 + D
                 * (
-                    (D_x @ theta) ** 2
-                    + (D_x @ M_0) ** 2
-                    - (D_x @ M_x) ** 2
-                    - (D_x @ M_y) ** 2
+                    +((D_x @ theta) ** 2 + (D_y @ theta) ** 2 + (D_z @ theta) ** 2)
+                    + ((D_x @ M_0) ** 2 + (D_y @ M_0) ** 2 + (D_z @ M_0) ** 2)
+                    - ((D_x @ M_x) ** 2 + (D_y @ M_x) ** 2 + (D_z @ M_x) ** 2)
+                    - ((D_x @ M_y) ** 2 + (D_y @ M_y) ** 2 + (D_z @ M_y) ** 2)
+                    - ((D_x @ M_z) ** 2 + (D_y @ M_z) ** 2 + (D_z @ M_z) ** 2)
                 )
                 + (
                     (
@@ -217,11 +220,11 @@ def solve_usadel_xy(
     Delta: np.ndarray,
     omega_ax: np.ndarray,
     omega_idx: int,
-    gamma: float = 1,
-    tol: float = 1e-6,
-    max_iter: int = 1000,
-    print_exit_status: bool = False,
-    use_dense: bool = False,
+    gamma: float,
+    tol: float,
+    max_iter: int,
+    print_exit_status: bool,
+    use_dense: bool,
 ):
 
     iter_n = 0
@@ -390,11 +393,11 @@ def solve_usadel_x(
     Delta: np.ndarray,
     omega_ax: np.ndarray,
     omega_idx: int,
-    gamma: float = 1,
-    tol: float = 1e-6,
-    max_iter: int = 1000,
-    print_exit_status: bool = False,
-    use_dense: bool = False,
+    gamma: float,
+    tol: float,
+    max_iter: int,
+    print_exit_status: bool,
+    use_dense: bool,
 ):
 
     iter_n = 0
@@ -481,7 +484,9 @@ def solve_usadel_x(
         theta[omega_idx] += gamma * dtheta
         M_x[omega_idx] += gamma * dM_x
 
-        res = np.sum(np.abs(dd)) / (np.sum(np.abs(theta)) + np.sum(np.abs(M_x)))
+        res_theta = np.sum(np.abs(dtheta)) / np.sum(np.abs(theta))
+        res_M_x = np.sum(np.abs(dM_x)) / np.sum(np.abs(M_x))
+        res = res_theta + res_M_x
 
         if res < tol:
             if print_exit_status:
@@ -562,6 +567,7 @@ def solve_usadel(
                     Delta=Delta,
                     omega_ax=omega_ax,
                     omega_idx=omega_idx,
+                    gamma=gamma,
                     tol=tol,
                     max_iter=max_iter,
                     print_exit_status=print_exit_status,
@@ -577,6 +583,7 @@ def solve_usadel(
                     Delta=Delta,
                     omega_ax=omega_ax,
                     omega_idx=omega_idx,
+                    gamma=gamma,
                     tol=tol,
                     max_iter=max_iter,
                     print_exit_status=print_exit_status,
@@ -587,18 +594,20 @@ def solve_usadel(
 
 
 def solve_usadel_self_consistent(
-    assemble_fns,
-    h_x,
-    h_y,
-    h_z,
-    Delta,
-    T,
-    T_c0=1,
-    omega_N=100,
-    gamma=1,
-    tol=1e-6,
-    max_iter=1000,
-    max_iter_delta=100,
+    assemble_fns: dict,
+    h_x: np.ndarray,
+    h_y: np.ndarray,
+    h_z: np.ndarray,
+    Delta: np.ndarray,
+    T: float,
+    T_c0: float = 1.0,
+    omega_N: int = 100,
+    gamma: float = 1.0,
+    tol_g: float = 1e-6,
+    max_iter_g: int = 1000,
+    tol_Delta: float = 1e-6,
+    max_iter_Delta: int = 100,
+    verbose: bool = False,
 ):
     """
     Solve the Usadel equation for Matsubara frequencies self-consistently to determine Delta.
@@ -657,8 +666,8 @@ def solve_usadel_self_consistent(
             Delta,
             omega_ax,
             gamma=gamma,
-            tol=tol,
-            max_iter=max_iter,
+            tol=tol_g,
+            max_iter=max_iter_g,
             print_exit_status=False,
         )
 
@@ -678,15 +687,19 @@ def solve_usadel_self_consistent(
                 h_x, h_y, h_z, theta[n], M_x[n], M_y[n], M_z[n], Delta, omega_ax[n], T
             )
 
-        print(
-            f"{iter_n:3d}    Max Delta: {Delta.max():4.3f}    Residual: {res:3.2e}    Free energy: {F_sn:3.2e}"
-        )
+        if verbose:
+            print(
+                f"{iter_n:3d}    Max Delta: {Delta.max():4.3f}    Residual: {res:3.2e}    Free energy: {F_sn:3.2e}"
+            )
 
-        if res < tol:
-            print(f"Converged in {iter_n} iterations")
+        if res < tol_Delta:
+            if verbose:
+                print(f"Converged in {iter_n} iterations")
             break
 
-        elif iter_n > max_iter_delta:
-            print("Max iteration reached")
+        elif iter_n > max_iter_Delta:
+            if verbose:
+                print("Max iteration reached")
             break
+
     return (theta, M_x, M_y, M_z, Delta, omega_ax, F_sn)
