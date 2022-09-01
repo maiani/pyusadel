@@ -14,11 +14,12 @@ from .findiff import DifferentialOperators
 def gen_assemble_fns(
     diff_ops: DifferentialOperators,
     D: float,
-    h_x: float or np.ndarray,
-    h_y: float or np.ndarray,
-    h_z: float or np.ndarray,
-    tau_so_inv: float or np.ndarray,
-    tau_sf_inv: float or np.ndarray,
+    h_x: float or np.ndarray = np.array([0.0]),
+    h_y: float or np.ndarray = np.array([0.0]),
+    h_z: float or np.ndarray = np.array([0.0]),
+    tau_so_inv: float or np.ndarray = np.array([0.0]),
+    tau_sf_inv: float or np.ndarray = np.array([0.0]),
+    Gamma: float = 0.0,
 ) -> dict:
     """
     Define the assembly functions.
@@ -39,6 +40,8 @@ def gen_assemble_fns(
         Spin-orbit relaxation rate time
     tau_sf_inv : np.ndarray
         Spin-flip relaxation rate time
+    Gamma : float
+        Dynes parameter
 
     Returns
     -------
@@ -52,28 +55,28 @@ def gen_assemble_fns(
     def f0(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return (
             (D * (L @ theta))
-            + 2 * M_0 * (Delta * np.cos(theta) - omega_n * np.sin(theta))
+            + 2 * M_0 * (Delta * np.cos(theta) - (omega_n + Gamma) * np.sin(theta))
             - 2 * (h_x * M_x + h_y * M_y) * np.cos(theta)
             - tau_sf_inv * (2 * M_0**2 + 1) / 4 * np.sin(2 * theta)
         )
 
     def df0_dtheta(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return (D * L) + sparse.diags(
-            2 * M_0 * (-Delta * np.sin(theta) - omega_n * np.cos(theta))
+            2 * M_0 * (-Delta * np.sin(theta) - (omega_n + Gamma) * np.cos(theta))
             + 2 * (h_x * M_x + h_y * M_y) * np.sin(theta)
             - tau_sf_inv * (2 * M_0**2 + 1) / 2 * np.cos(2 * theta)
         )
 
     def df0_dM_x(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return sparse.diags(
-            2 * M_x / M_0 * (Delta * np.cos(theta) - omega_n * np.sin(theta))
+            2 * M_x / M_0 * (Delta * np.cos(theta) - (omega_n + Gamma) * np.sin(theta))
             - 2 * h_x * np.cos(theta)
             - tau_sf_inv * M_x * np.sin(2 * theta)
         )
 
     def df0_dM_y(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return sparse.diags(
-            2 * M_y / M_0 * (Delta * np.cos(theta) - omega_n * np.sin(theta))
+            2 * M_y / M_0 * (Delta * np.cos(theta) - (omega_n + Gamma) * np.sin(theta))
             - 2 * h_y * np.cos(theta)
             - tau_sf_inv * M_y * np.sin(2 * theta)
         )
@@ -81,14 +84,14 @@ def gen_assemble_fns(
     ############ f1 #############
     def f1(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return +D * (M_x * (L @ M_0) - M_0 * (L @ M_x)) + (
-            +2 * M_x * (Delta * np.sin(theta) + omega_n * np.cos(theta))
+            +2 * M_x * (Delta * np.sin(theta) + (omega_n + Gamma) * np.cos(theta))
             - 2 * np.sin(theta) * h_x * M_0
             + (tau_so_inv + tau_sf_inv * np.cos(2 * theta) / 2) * M_0 * M_x
         )
 
     def df1_dtheta(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return sparse.diags(
-            2 * M_x * (Delta * np.cos(theta) - omega_n * np.sin(theta))
+            2 * M_x * (Delta * np.cos(theta) - (omega_n + Gamma) * np.sin(theta))
             - 2 * h_x * M_0 * np.cos(theta)
             - tau_sf_inv * np.sin(2 * theta) * M_0 * M_x
         )
@@ -100,7 +103,7 @@ def gen_assemble_fns(
             - sparse.diags((M_x / M_0) * (L @ M_x))
             - sparse.diags(M_0) @ L
         ) + sparse.diags(
-            +2 * (Delta * np.sin(theta) + omega_n * np.cos(theta))
+            +2 * (Delta * np.sin(theta) + (omega_n + Gamma) * np.cos(theta))
             - 2 * h_x * (M_x / M_0) * np.sin(theta)
             + (tau_so_inv + tau_sf_inv * np.cos(2 * theta) / 2) * M_x**2 / M_0
         )
@@ -116,14 +119,14 @@ def gen_assemble_fns(
     ############ f2 #############
     def f2(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return +D * (M_y * (L @ M_0) - M_0 * (L @ M_y)) + (
-            2 * M_y * (Delta * np.sin(theta) + omega_n * np.cos(theta))
+            2 * M_y * (Delta * np.sin(theta) + (omega_n + Gamma) * np.cos(theta))
             - 2 * np.sin(theta) * h_y * M_0
             + (tau_so_inv + tau_sf_inv * np.cos(2 * theta) / 2) * M_0 * M_y
         )
 
     def df2_dtheta(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return sparse.diags(
-            2 * M_y * (Delta * np.cos(theta) - omega_n * np.sin(theta))
+            2 * M_y * (Delta * np.cos(theta) - (omega_n + Gamma) * np.sin(theta))
             - 2 * h_y * M_0 * np.cos(theta)
             - tau_sf_inv * np.sin(2 * theta) * M_0 * M_y
         )
@@ -135,7 +138,7 @@ def gen_assemble_fns(
             - sparse.diags((M_y / M_0) * (L @ M_y))
             - sparse.diags(M_0) @ L
         ) + sparse.diags(
-            2 * (Delta * np.sin(theta) + omega_n * np.cos(theta))
+            2 * (Delta * np.sin(theta) + (omega_n + Gamma) * np.cos(theta))
             - 2 * h_y * (M_y / M_0) * np.sin(theta)
             + (tau_so_inv + tau_sf_inv * np.cos(2 * theta) / 2) * (M_y**2 / M_0 + M_0)
         )

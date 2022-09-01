@@ -30,6 +30,7 @@ class UsadelProblem:
         D: float,
         T: float,
         T_c0: float = 1,
+        Gamma: float = 0,
     ):
 
         self.Nsites = Nsites
@@ -53,6 +54,7 @@ class UsadelProblem:
         self.D = D
         self.T = T
         self.T_c0 = 1
+        self.Gamma = Gamma
 
         self.assemble_fns = gen_assemble_fns(
             D=self.D,
@@ -62,6 +64,7 @@ class UsadelProblem:
             h_z=self.h_z,
             tau_so_inv=self.tau_so_inv,
             tau_sf_inv=self.tau_sf_inv,
+            Gamma=self.Gamma,
         )
 
         self.Delta = np.ones((Nsites), dtype=np.float)
@@ -144,7 +147,7 @@ class UsadelProblem:
         self.M_0_r = np.sqrt(1 + self.M_x_r**2 + self.M_y_r**2 + self.M_z_r**2)
 
     def get_dos(self):
-        return np.real(self.M_0_r * np.cos(self.theta_r)) / 2
+        return np.real(self.M_0_r * np.cos(self.theta_r))
 
     def get_spin_resolved_dos(self, direction: str):
         if direction == "x":
@@ -153,12 +156,12 @@ class UsadelProblem:
                     self.M_0_r * np.cos(self.theta_r)
                     + 1j * self.M_x_r * np.sin(self.theta_r)
                 )
-                / 4,
+                / 2,
                 np.real(
                     self.M_0_r * np.cos(self.theta_r)
                     - 1j * self.M_x_r * np.sin(self.theta_r)
                 )
-                / 4,
+                / 2,
             )
         elif direction == "y":
             return (
@@ -166,12 +169,12 @@ class UsadelProblem:
                     self.M_0_r * np.cos(self.theta_r)
                     + 1j * self.M_y_r * np.sin(self.theta_r)
                 )
-                / 4,
+                / 2,
                 np.real(
                     self.M_0_r * np.cos(self.theta_r)
                     - 1j * self.M_y_r * np.sin(self.theta_r)
                 )
-                / 4,
+                / 2,
             )
         elif direction == "z":
             return (
@@ -179,12 +182,12 @@ class UsadelProblem:
                     self.M_0_r * np.cos(self.theta_r)
                     + 1j * self.M_z_r * np.sin(self.theta_r)
                 )
-                / 4,
+                / 2,
                 np.real(
                     self.M_0_r * np.cos(self.theta_r)
                     - 1j * self.M_z_r * np.sin(self.theta_r)
                 )
-                / 4,
+                / 2,
             )
         else:
             raise Exception("Error.")
