@@ -179,3 +179,16 @@ def laplacian(Nx, dx, boundary_condition):
     L_x = L_x / dx**2
 
     return L_x.tocsr()
+
+
+def trivial_diffops():
+    """
+    Generate a trivial DifferentialOperators class instance.
+    """
+    do = DifferentialOperators()
+    do.D_x = np.zeros((1, 1), dtype=float)
+    do.D_y = np.zeros((1, 1), dtype=float)
+    do.D_z = np.zeros((1, 1), dtype=float)
+    do.L = np.zeros((1, 1), dtype=float)
+
+    return do

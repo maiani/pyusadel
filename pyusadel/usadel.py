@@ -374,12 +374,12 @@ def solve_usadel_xy(
 
         if res < tol:
             if print_exit_status:
-                print("Converged")
+                print(f"omega={omega_ax[omega_idx].imag:1.2f} : converged.")
             break
 
         elif iter_n > max_iter:
             if print_exit_status:
-                print("Max iteration reached")
+                print(f"omega={omega_ax[omega_idx].imag:1.2f} : max iteration reached.")
             break
 
         else:
@@ -484,18 +484,16 @@ def solve_usadel_x(
         theta[omega_idx] += gamma * dtheta
         M_x[omega_idx] += gamma * dM_x
 
-        res_theta = np.sum(np.abs(dtheta)) / np.sum(np.abs(theta))
-        res_M_x = np.sum(np.abs(dM_x)) / np.sum(np.abs(M_x))
-        res = res_theta + res_M_x
+        res = np.sum(np.abs(dd)) / (np.sum(np.abs(theta)) + np.sum(np.abs(M_x)))
 
         if res < tol:
             if print_exit_status:
-                print("Converged")
+                print(f"omega={omega_ax[omega_idx].imag:1.2f} : converged.")
             break
 
         elif iter_n > max_iter:
             if print_exit_status:
-                print("Max iteration reached")
+                print(f"omega={omega_ax[omega_idx].imag:1.2f} : max iteration reached.")
             break
 
         else:

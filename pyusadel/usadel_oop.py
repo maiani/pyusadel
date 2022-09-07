@@ -30,7 +30,7 @@ class UsadelProblem:
         D: float,
         T: float,
         T_c0: float = 1,
-        Gamma: float = 0,
+        Gamma: float = 1e-3,
     ):
         """
         Parameters
@@ -116,10 +116,76 @@ class UsadelProblem:
         self.h_c0 = self.Delta_00 / np.sqrt(2)
         self.xi_00 = np.sqrt(self.D / self.Delta_00)
 
+    def update_params(
+        self,
+        h_x: np.ndarray,
+        h_y: np.ndarray,
+        h_z: np.ndarray,
+        tau_sf_inv: np.ndarray,
+        tau_so_inv: np.ndarray,
+        D: float,
+        T: float,
+        T_c0: float = 1,
+        Gamma: float = 0,
+    ):
+        """
+        Parameters
+        ----------
+        h_x: np.ndarray
+            Zeeman field (x component)
+        h_y: np.ndarray
+            Zeeman field (y component)
+        h_z: np.ndarray
+            Zeeman field (z component)
+        tau_sf_inv: np.ndarray
+            Inverse of spin-flip scattering time.
+        tau_so_inv: np.ndarray
+            Inverse of spin-orbit scattering time.
+        D: float
+            Diffusion constant.
+        T: float
+            Temperature.
+        T_c0: float (default 1)
+            Critical temperature in absence of pair-breaking.
+        Gamma: float (default 0)
+            Dynes parameter.
+        """
+
+        if (
+            h_x.shape != (Nsites,)
+            or h_y.shape != (Nsites,)
+            or h_z.shape != (Nsites,)
+            or tau_sf_inv.shape != (Nsites,)
+            or tau_so_inv.shape != (Nsites,)
+        ):
+            raise Exception("Dimensions doesn't match.")
+        else:
+            self.h_x = h_x
+            self.h_y = h_y
+            self.h_z = h_z
+            self.tau_sf_inv = tau_sf_inv
+            self.tau_so_inv = tau_so_inv
+
+        self.D = D
+        self.T = T
+        self.T_c0 = T_c0
+        self.Gamma = Gamma
+
+        self.assemble_fns = gen_assemble_fns(
+            D=self.D,
+            diff_ops=self.diff_ops,
+            h_x=self.h_x,
+            h_y=self.h_y,
+            h_z=self.h_z,
+            tau_so_inv=self.tau_so_inv,
+            tau_sf_inv=self.tau_sf_inv,
+            Gamma=self.Gamma,
+        )
+
     def solve_self_consistent(
         self,
         omega_N: int = None,
-        gamma=1,
+        gamma: float = 0.5,
         tol_g: float = 1e-6,
         max_iter_g: int = 1000,
         tol_Delta: float = 1e-6,
