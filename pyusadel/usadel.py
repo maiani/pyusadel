@@ -7,7 +7,6 @@ import numpy as np
 from numpy import linalg as la
 from scipy import sparse
 from scipy.sparse import linalg as sla
-from numba import jit
 from .findiff import DifferentialOperators
 
 
@@ -20,6 +19,7 @@ def gen_assemble_fns(
     tau_so_inv: float or np.ndarray = np.array([0.0]),
     tau_sf_inv: float or np.ndarray = np.array([0.0]),
     Gamma: float = 0.0,
+    use_dense=False,
 ) -> dict:
     """
     Define the assembly functions.
@@ -51,7 +51,14 @@ def gen_assemble_fns(
 
     D_x, D_y, D_z, L = diff_ops.get_diffops()
 
+    if use_dense:
+        diag = sparse.diags
+        # FIXME: diag = np.diag
+    else:
+        diag = sparse.diags
+
     ############ f0 #############
+
     def f0(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return (
             (D * (L @ theta))
@@ -61,27 +68,28 @@ def gen_assemble_fns(
         )
 
     def df0_dtheta(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
-        return (D * L) + sparse.diags(
+        return (D * L) + diag(
             2 * M_0 * (-Delta * np.sin(theta) - (omega_n + Gamma) * np.cos(theta))
             + 2 * (h_x * M_x + h_y * M_y) * np.sin(theta)
             - tau_sf_inv * (2 * M_0**2 + 1) / 2 * np.cos(2 * theta)
         )
 
     def df0_dM_x(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
-        return sparse.diags(
+        return diag(
             2 * M_x / M_0 * (Delta * np.cos(theta) - (omega_n + Gamma) * np.sin(theta))
             - 2 * h_x * np.cos(theta)
             - tau_sf_inv * M_x * np.sin(2 * theta)
         )
 
     def df0_dM_y(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
-        return sparse.diags(
+        return diag(
             2 * M_y / M_0 * (Delta * np.cos(theta) - (omega_n + Gamma) * np.sin(theta))
             - 2 * h_y * np.cos(theta)
             - tau_sf_inv * M_y * np.sin(2 * theta)
         )
 
     ############ f1 #############
+
     def f1(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return +D * (M_x * (L @ M_0) - M_0 * (L @ M_x)) + (
             +2 * M_x * (Delta * np.sin(theta) + (omega_n + Gamma) * np.cos(theta))
@@ -90,7 +98,7 @@ def gen_assemble_fns(
         )
 
     def df1_dtheta(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
-        return sparse.diags(
+        return diag(
             2 * M_x * (Delta * np.cos(theta) - (omega_n + Gamma) * np.sin(theta))
             - 2 * h_x * M_0 * np.cos(theta)
             - tau_sf_inv * np.sin(2 * theta) * M_0 * M_x
@@ -98,25 +106,24 @@ def gen_assemble_fns(
 
     def df1_dM_x(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return +D * (
-            sparse.diags(L @ M_0)
-            + sparse.diags(M_x * (L @ (M_x / M_0)))
-            - sparse.diags((M_x / M_0) * (L @ M_x))
-            - sparse.diags(M_0) @ L
-        ) + sparse.diags(
+            diag(L @ M_0)
+            + diag(M_x * (L @ (M_x / M_0)))
+            - diag((M_x / M_0) * (L @ M_x))
+            - diag(M_0) @ L
+        ) + diag(
             +2 * (Delta * np.sin(theta) + (omega_n + Gamma) * np.cos(theta))
             - 2 * h_x * (M_x / M_0) * np.sin(theta)
             + (tau_so_inv + tau_sf_inv * np.cos(2 * theta) / 2) * (M_x**2 / M_0 + M_0)
         )
 
     def df1_dM_y(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
-        return +D * (
-            sparse.diags(M_x * (L @ (M_y / M_0))) - sparse.diags(M_y / M_0) @ L
-        ) + sparse.diags(
+        return +D * (diag(M_x * (L @ (M_y / M_0))) - diag(M_y / M_0) @ L) + diag(
             -2 * h_x * M_y / M_0 * np.sin(theta)
             + (tau_so_inv + tau_sf_inv * np.cos(2 * theta) / 2) * M_y * M_x / M_0
         )
 
     ############ f2 #############
+
     def f2(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return +D * (M_y * (L @ M_0) - M_0 * (L @ M_y)) + (
             2 * M_y * (Delta * np.sin(theta) + (omega_n + Gamma) * np.cos(theta))
@@ -125,7 +132,7 @@ def gen_assemble_fns(
         )
 
     def df2_dtheta(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
-        return sparse.diags(
+        return diag(
             2 * M_y * (Delta * np.cos(theta) - (omega_n + Gamma) * np.sin(theta))
             - 2 * h_y * M_0 * np.cos(theta)
             - tau_sf_inv * np.sin(2 * theta) * M_0 * M_y
@@ -133,27 +140,24 @@ def gen_assemble_fns(
 
     def df2_dM_y(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return D * (
-            sparse.diags(L @ M_0)
-            + sparse.diags(M_y * (L @ (M_y / M_0)))
-            - sparse.diags((M_y / M_0) * (L @ M_y))
-            - sparse.diags(M_0) @ L
-        ) + sparse.diags(
+            diag(L @ M_0)
+            + diag(M_y * (L @ (M_y / M_0)))
+            - diag((M_y / M_0) * (L @ M_y))
+            - diag(M_0) @ L
+        ) + diag(
             2 * (Delta * np.sin(theta) + (omega_n + Gamma) * np.cos(theta))
             - 2 * h_y * (M_y / M_0) * np.sin(theta)
             + (tau_so_inv + tau_sf_inv * np.cos(2 * theta) / 2) * (M_y**2 / M_0 + M_0)
         )
 
     def df2_dM_x(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
-        return +D * (
-            sparse.diags(M_y * (L @ (M_x / M_0))) - sparse.diags(M_x / M_0) @ L
-        ) + sparse.diags(
+        return +D * (diag(M_y * (L @ (M_x / M_0))) - diag(M_x / M_0) @ L) + diag(
             -2 * h_y * M_x / M_0 * np.sin(theta)
             + (tau_so_inv + tau_sf_inv * np.cos(2 * theta) / 2) * M_x * M_y / M_0
         )
 
     def F_n(h_x, h_y, h_z, theta, M_x, M_y, M_z, Delta, omega_n, T):
         # TODO: add Dynes parameter
-
         M_0 = np.sqrt(1 + M_x**2 + M_y**2)
 
         return (
@@ -606,6 +610,7 @@ def solve_usadel_self_consistent(
     tol_Delta: float = 1e-6,
     max_iter_Delta: int = 100,
     verbose: bool = False,
+    use_dense: bool = False,
 ):
     """
     Solve the Usadel equation for Matsubara frequencies self-consistently to determine Delta.
@@ -667,6 +672,7 @@ def solve_usadel_self_consistent(
             tol=tol_g,
             max_iter=max_iter_g,
             print_exit_status=False,
+            use_dense=use_dense,
         )
 
         old_Delta = Delta.copy()

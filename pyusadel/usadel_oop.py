@@ -7,7 +7,6 @@ import numpy as np
 from numpy import linalg as la
 from scipy import sparse
 from scipy.sparse import linalg as sla
-from numba import jit
 from .findiff import DifferentialOperators
 from .usadel import gen_assemble_fns, solve_usadel, solve_usadel_self_consistent
 
@@ -31,6 +30,7 @@ class UsadelProblem:
         T: float,
         T_c0: float = 1,
         Gamma: float = 1e-3,
+        use_dense: bool = False,
     ):
         """
         Parameters
@@ -82,6 +82,8 @@ class UsadelProblem:
         self.T_c0 = T_c0
         self.Gamma = Gamma
 
+        self.use_dense = use_dense
+
         self.assemble_fns = gen_assemble_fns(
             D=self.D,
             diff_ops=self.diff_ops,
@@ -91,6 +93,7 @@ class UsadelProblem:
             tau_so_inv=self.tau_so_inv,
             tau_sf_inv=self.tau_sf_inv,
             Gamma=self.Gamma,
+            use_dense=self.use_dense,
         )
 
         self.Delta = np.ones((Nsites), dtype=np.float)
@@ -180,6 +183,7 @@ class UsadelProblem:
             tau_so_inv=self.tau_so_inv,
             tau_sf_inv=self.tau_sf_inv,
             Gamma=self.Gamma,
+            use_dense=self.use_dense,
         )
 
     def solve_self_consistent(
@@ -219,6 +223,7 @@ class UsadelProblem:
             tol_Delta=tol_Delta,
             max_iter_Delta=max_iter_Delta,
             verbose=verbose,
+            use_dense=self.use_dense,
         )
 
     def set_real_omega_ax(self, omega_min, omega_max, omega_N):
@@ -252,7 +257,6 @@ class UsadelProblem:
         tol: float = 1e-6,
         max_iter: int = 1000,
         print_exit_status: bool = False,
-        use_dense: bool = False,
     ):
         solve_usadel(
             assemble_fns=self.assemble_fns,
@@ -269,7 +273,7 @@ class UsadelProblem:
             tol=tol,
             max_iter=max_iter,
             print_exit_status=print_exit_status,
-            use_dense=use_dense,
+            use_dense=self.use_dense,
         )
         self.M_0_r = np.sqrt(1 + self.M_x_r**2 + self.M_y_r**2 + self.M_z_r**2)
 
