@@ -11,7 +11,13 @@ from scipy.optimize import curve_fit
 
 
 def fit_nsts(
-    e_ax_exp, dos_exp, initial_guess, bounds, max_iter=None, verbose: bool = False
+    e_ax_exp,
+    dos_exp,
+    initial_guess,
+    bounds,
+    tol=1e-8,
+    verbose: bool = False,
+    solution=None,
 ):
     """Fit the experimental data.
 
@@ -21,15 +27,26 @@ def fit_nsts(
         Energy axis of the experimental data.
     dos_exp : np.ndarray
         Spectroscopy data.
-    max_iter : int
-        Maximum number of iterations.
+    initial_guess: tuple
+        Initial guess for the paramteres
+    bounds : tuple(tuple, tuple)
+        Bounds on the parameters
+    tol : float
+        Objective tolerance.
     verbose : bool
         Whether printing the status.
+    solution : tuple(np.array, np.array)
+        Variables (theta, M_x). If provided, the program will use those
+        variable for the optimization. Useful to provide as initial guess
+        the results of a previous optimization.
     """
     do = trivial_diffops()
 
-    theta = np.ones((e_ax_exp.shape[0], 1), dtype=complex)
-    M_x = np.zeros((e_ax_exp.shape[0], 1), dtype=complex)
+    if solution:
+        theta, M_x = solution
+    else:
+        theta = np.ones((e_ax_exp.shape[0], 1), dtype=complex)
+        M_x = np.zeros((e_ax_exp.shape[0], 1), dtype=complex)
 
     def wrapper(omega_ax_exp, *params):
 
@@ -77,7 +94,7 @@ def fit_nsts(
 
     verbosity = 2 if verbose else 0
 
-    return curve_fit(
+    fit_results = curve_fit(
         f=wrapper,
         xdata=e_ax_exp,
         ydata=dos_exp,
@@ -90,5 +107,10 @@ def fit_nsts(
         # jac=None,
         # full_output=True,
         verbose=verbosity,
-        max_nfev=max_iter,
+        ftol=tol,
+        xtol=tol,
+        gtol=tol,
+        x_scale="jac",
     )
+
+    return fit_results
