@@ -96,7 +96,7 @@ class UsadelProblem:
             use_dense=self.use_dense,
         )
 
-        self.Delta = np.ones((Nsites), dtype=np.float)
+        self.Delta = np.ones((Nsites), dtype=float)
         self.F_sn = None
 
         # Imaginary frequency axis

@@ -16,4 +16,5 @@ setuptools.setup(
     license="MIT",
     python_requires=">=3.9",
     install_requires=["numpy>=1.21", "scipy>=1.7"],
+    extras_require={"extra": ["numba>=0.56"]},
 )
