@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.signal import convolve2d
 
 try:
     import numba
@@ -11,8 +12,8 @@ if numba_available:
     jit = numba.jit
 else:
 
-    def jit(*args):
-        return args
+    def jit(fn):
+        return fn
 
 
 @jit
@@ -38,8 +39,8 @@ def thermal_broadening(e_ax, x, T):
 
     de = e_ax[1] - e_ax[0]
     ndf = ndf_de(e_ax, T) * de
-
-    out = np.convolve(x, ndf, mode="same")
+    ndf = ndf[:, np.newaxis]
+    out = convolve2d(x, ndf, mode="same")
 
     for i in range(e_ax.shape[0]):
         out[i] += x[0] * (f(e_ax[i] - e_ax[+0] + de / 2, T))

@@ -89,8 +89,8 @@ def fit_nsts(
         M_0 = np.sqrt(1 + M_x**2)
 
         return thermal_broadening(
-            e_ax_exp, N_0 * np.real(M_0 * np.cos(theta))[:, 0], T=T
-        )
+            e_ax_exp, N_0 * np.real(M_0 * np.cos(theta)), T=T
+        )[:, 0]
 
     verbosity = 2 if verbose else 0
 
