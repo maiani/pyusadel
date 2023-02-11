@@ -121,17 +121,19 @@ class UsadelProblem:
 
     def update_params(
         self,
-        h_x: np.ndarray,
-        h_y: np.ndarray,
-        h_z: np.ndarray,
-        tau_sf_inv: np.ndarray,
-        tau_so_inv: np.ndarray,
-        D: float,
-        T: float,
-        T_c0: float = 1,
-        Gamma: float = 0,
+        h_x: np.ndarray | None = None,
+        h_y: np.ndarray | None = None,
+        h_z: np.ndarray | None = None,
+        tau_sf_inv: np.ndarray | None = None,
+        tau_so_inv: np.ndarray | None = None,
+        D: float | None = None,
+        T: float | None = None,
+        T_c0: float | None = None,
+        Gamma: float | None = None,
     ):
         """
+        Update the parameters of the problem.
+
         Parameters
         ----------
         h_x: np.ndarray
@@ -148,31 +150,53 @@ class UsadelProblem:
             Diffusion constant.
         T: float
             Temperature.
-        T_c0: float (default 1)
+        T_c0: float
             Critical temperature in absence of pair-breaking.
-        Gamma: float (default 0)
+        Gamma: float
             Dynes parameter.
         """
 
-        if (
-            h_x.shape != (Nsites,)
-            or h_y.shape != (Nsites,)
-            or h_z.shape != (Nsites,)
-            or tau_sf_inv.shape != (Nsites,)
-            or tau_so_inv.shape != (Nsites,)
-        ):
-            raise Exception("Dimensions doesn't match.")
-        else:
-            self.h_x = h_x
-            self.h_y = h_y
-            self.h_z = h_z
-            self.tau_sf_inv = tau_sf_inv
-            self.tau_so_inv = tau_so_inv
+        if h_x is not None:
+            if h_x.shape != (self.Nsites,):
+                raise Exception("Dimensions doesn't match.")
+            else:
+                self.h_x = h_x
 
-        self.D = D
-        self.T = T
-        self.T_c0 = T_c0
-        self.Gamma = Gamma
+        if h_y is not None:
+            if h_y.shape != (self.Nsites,):
+                raise Exception("Dimensions doesn't match.")
+            else:
+                self.h_y = h_y
+
+        if h_z is not None:
+            if h_z.shape != (self.Nsites,):
+                raise Exception("Dimensions doesn't match.")
+            else:
+                self.h_z = h_z
+
+        if tau_sf_inv is not None:
+            if tau_sf_inv.shape != (self.Nsites,):
+                raise Exception("Dimensions doesn't match.")
+            else:
+                self.tau_sf_inv = tau_sf_inv
+
+        if tau_so_inv is not None:
+            if tau_so_inv.shape != (self.Nsites,):
+                raise Exception("Dimensions doesn't match.")
+            else:
+                self.tau_so_inv = tau_so_inv
+
+        if D is not None:
+            self.D = D
+
+        if T is not None:
+            self.T = T
+
+        if T_c0 is not None:
+            self.T_c0 = T_c0
+
+        if Gamma is not None:
+            self.Gamma = Gamma
 
         self.assemble_fns = gen_assemble_fns(
             D=self.D,
@@ -258,6 +282,10 @@ class UsadelProblem:
         max_iter: int = 1000,
         print_exit_status: bool = False,
     ):
+        """
+        Solve the Usadel equations for real frequencies.
+        """
+
         solve_usadel(
             assemble_fns=self.assemble_fns,
             h_x=self.h_x,
@@ -277,10 +305,16 @@ class UsadelProblem:
         )
         self.M_0_r = np.sqrt(1 + self.M_x_r**2 + self.M_y_r**2 + self.M_z_r**2)
 
-    def get_dos(self):
+    def get_ldos(self):
+        """
+        Returns the local density of states.
+        """
         return np.real(self.M_0_r * np.cos(self.theta_r))
 
-    def get_spin_resolved_dos(self, direction: str):
+    def get_spin_resolved_ldos(self, direction: str):
+        """
+        Returns the spin-resolved local density of states.
+        """
         if direction == "x":
             return (
                 np.real(
@@ -323,7 +357,18 @@ class UsadelProblem:
         else:
             raise Exception("Error.")
 
-    def get_pairing_amplitudes(self):
+    def anomalous_correlator(self):
+        """
+        Return the anomalous correlator.
+
+        Returns:
+        -------
+            (Delta_0, Delta_x, Delta_y, Delta_z): (np.ndarray, np.ndarray, np.ndarray, np.ndarray)
+
+            The anomalous correlator.
+
+        """
+
         return (
             np.real(self.M_0_r * np.sin(self.theta_r)),
             np.real(-1j * self.M_x_r * np.cos(self.theta_r)),
@@ -331,5 +376,17 @@ class UsadelProblem:
             np.real(-1j * self.M_z_r * np.cos(self.theta_r)),
         )
 
-    def generate_self_energy(self):
-        pass
+    def spin_polarization(self):
+        """
+        Return the local spin-polarization at finite temperature.
+
+        Returns:
+            (S_x, S_y, S_z): (np.ndarray, np.ndarray, np.ndarray)
+            The local polarization
+        """
+
+        return (
+            np.sum(self.M_x_i * np.sin(theta_i), axis=0).real,
+            np.sum(self.M_y_i * np.sin(theta_i), axis=0).real,
+            np.sum(self.M_z_i * np.sin(theta_i), axis=0).real,
+        )

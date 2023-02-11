@@ -1,6 +1,7 @@
 # pyUsadel
-A toolkit for modeling superconductor heterostructure with Usadel equations written ain python.
-This is code is still in a preliminary stage and work-in-progress.
+A toolkit for modeling superconductor heterostructure with Usadel equations written in python.
+This is code is still in a preliminary stage and work-in-progress. There is no documentation available and no stable API.
+
 
 ## Table of Contents
 - [Description](#description)
