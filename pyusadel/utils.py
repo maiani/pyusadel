@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.signal import convolve2d
+from scipy.interpolate import interp1d
 
 try:
     import numba
@@ -16,34 +16,120 @@ else:
         return fn
 
 
-@jit
-def f(eps, T):
+def thermal_broadening(e_ax: np.ndarray, y: np.ndarray, T: float) -> np.ndarray:
     """
-    Fermi-Dirac distribution.
+    Computes the thermal broadening of a given spectrum at a given temperature.
+
+    Parameters:
+    -----------
+    e_ax : np.ndarray
+        Array of energy axis values.
+    y : np.ndarray
+        Array of corresponding values.
+    T : float
+        Temperature at which to compute the thermal broadening.
+
+    Returns:
+    --------
+    tb : np.ndarray
+        Array of thermal broadening values.
+
+    Raises:
+    -------
+    AssertionError:
+        If the temperature is too low.
     """
-    return 0.5 * (1 - np.tanh(eps / (2 * T)))
+    assert T > 0.0007
+
+    y_f = interp1d(e_ax, y, bounds_error=False, fill_value="extrapolate")
+
+    def integrand(x: np.ndarray, e: float, T: float) -> np.ndarray:
+        return y_f(e - x * T) / (2 * (1 + np.cosh(x)))
+
+    tb: np.ndarray = np.zeros_like(e_ax)
+
+    for i, e in enumerate(e_ax):
+        x = np.linspace(e_ax.min() / T, e_ax.max() / T, 4001)
+        dx = x[1] - x[0]
+        tb[i] = np.sum(integrand(x, e, T)) * dx
+
+    return tb
 
 
-@jit
-def ndf_de(eps, T):
+def resize_linspace(
+    linspace_arr: np.ndarray,
+    new_length: int,
+    filling_value: Union[float, None] = np.nan,
+    y: np.ndarray = None,
+) -> Union[np.ndarray, tuple]:
     """
-    Negative of the derivative of Fermi-Dirac distribution.
+    Given a numpy array generated using linspace_arr, this function resizes the
+    array by a given new length. If a y array is provided, it is also resized
+    accordingly.
+
+    Args:
+    linspace_arr (numpy.ndarray): A 1D numpy array generated using linspace
+    new_length (int): The new length to resize the array to
+    y (numpy.ndarray, optional): A 1D numpy array containing values evaluated
+        using linspace_arr as x.
+    fill_value (float, optional): The value to use for filling the new elements in y.
+
+    Returns:
+    numpy.ndarray: A 1D numpy array that is the resized version of linspace_arr
+    numpy.ndarray or None: If y is provided, a 1D numpy array that is the resized
+        version of y, with the fill_value inserted or removed as appropriate. If y is
+        not provided, None is returned.
     """
-    return 1 / (2 * T * (1 + np.cosh(eps / T)))
+    # Get the length of the original linspace array
+    orig_length = len(linspace_arr)
 
+    # Get the spacing between elements in the original linspace array
+    spacing = linspace_arr[1] - linspace_arr[0]
 
-def thermal_broadening(e_ax, x, T):
-    """
-    Broaden the data in x by convoluting it with df/de.
-    """
+    if new_length > orig_length:
+        # Upsize the arrays
+        # Calculate the number of elements to add to both ends of the arrays
+        num_elems = int((new_length - orig_length) / 2)
 
-    de = e_ax[1] - e_ax[0]
-    ndf = ndf_de(e_ax, T) * de
-    ndf = ndf[:, np.newaxis]
-    out = convolve2d(x, ndf, mode="same")
+        # Extend the arrays in both directions by num_elems elements
+        resized_linspace_arr = np.concatenate(
+            [
+                np.linspace(
+                    linspace_arr[0] - num_elems * spacing,
+                    linspace_arr[0] - spacing,
+                    num_elems,
+                ),
+                linspace_arr,
+                np.linspace(
+                    linspace_arr[-1] + spacing,
+                    linspace_arr[-1] + num_elems * spacing,
+                    num_elems,
+                ),
+            ]
+        )
+        if y is not None:
+            resized_y_arr = np.full(new_length, fill_value, dtype=y.dtype)
+            resized_y_arr[num_elems : num_elems + orig_length] = y
+            return resized_linspace_arr, resized_y_arr
+        else:
+            return resized_linspace_arr
 
-    for i in range(e_ax.shape[0]):
-        out[i] += x[0] * (f(e_ax[i] - e_ax[+0] + de / 2, T))
-        out[i] += x[-1] * (f(e_ax[-1] - e_ax[i] + de / 2, T))
+    elif new_length < orig_length:
+        # Downsize the arrays
+        # Calculate the number of elements to remove from both ends of the arrays
+        num_elems = int((orig_length - new_length) / 2)
 
-    return out
+        # Remove num_elems elements from both ends of the arrays
+        resized_linspace_arr = linspace_arr[num_elems:-num_elems]
+        if y is not None:
+            resized_y_arr = y[num_elems:-num_elems]
+            return resized_linspace_arr, resized_y_arr
+        else:
+            return resized_linspace_arr
+
+    else:
+        # Return the original arrays if new_length is the same as the original length
+        if y is not None:
+            return linspace_arr, y
+        else:
+            return linspace_arr
