@@ -12,7 +12,7 @@ from pyusadel import (
 )
 
 
-def fit_nis_ts(
+def fit_nis(
     e_ax_exp: np.ndarray,
     dos_exp: np.ndarray,
     Delta: Union[float, Sequence[float], np.ndarray],
@@ -27,7 +27,8 @@ def fit_nis_ts(
     verbose: bool = False,
     solution: Optional[Tuple[np.ndarray, np.ndarray]] = None,
 ) -> Tuple[Tuple[float], np.ndarray, np.ndarray]:
-    """Fit the experimental data.
+    
+    """Fit NIS tunneling spectroscopy data.
 
     Parameters:
     -------

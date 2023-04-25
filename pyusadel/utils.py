@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.interpolate import interp1d
+from typing import List, Optional, Sequence, Tuple, Union
 
 try:
     import numba
@@ -39,21 +40,22 @@ def thermal_broadening(e_ax: np.ndarray, y: np.ndarray, T: float) -> np.ndarray:
     AssertionError:
         If the temperature is too low.
     """
-    assert T > 0.0007
+    if T < 0.0007:
+        return y
+    else:
+        y_f = interp1d(e_ax, y, bounds_error=False, fill_value="extrapolate")
 
-    y_f = interp1d(e_ax, y, bounds_error=False, fill_value="extrapolate")
+        def integrand(x: np.ndarray, e: float, T: float) -> np.ndarray:
+            return y_f(e - x * T) / (2 * (1 + np.cosh(x)))
 
-    def integrand(x: np.ndarray, e: float, T: float) -> np.ndarray:
-        return y_f(e - x * T) / (2 * (1 + np.cosh(x)))
+        tb: np.ndarray = np.zeros_like(e_ax)
 
-    tb: np.ndarray = np.zeros_like(e_ax)
+        for i, e in enumerate(e_ax):
+            x = np.linspace(e_ax.min() / T, e_ax.max() / T, 4001)
+            dx = x[1] - x[0]
+            tb[i] = np.sum(integrand(x, e, T)) * dx
 
-    for i, e in enumerate(e_ax):
-        x = np.linspace(e_ax.min() / T, e_ax.max() / T, 4001)
-        dx = x[1] - x[0]
-        tb[i] = np.sum(integrand(x, e, T)) * dx
-
-    return tb
+        return tb
 
 
 def resize_linspace(

@@ -1,9 +1,6 @@
-import matplotlib.pyplot as plt
 import numpy as np
 from pyusadel import (
-    DifferentialOperators,
     UsadelProblem,
-    thermal_broadening,
     trivial_diffops,
 )
 
@@ -57,7 +54,7 @@ def test_0D_model():
     e_ax = up.get_omega_ax_r()
     up.solve_spectral(print_exit_status=False, tol=1e-15, max_iter=2000)
 
-    numerical_dos = up.get_dos()[:, 0]
+    numerical_dos = up.get_ldos()[:, 0]
     analytical_dos = analytical_DOS(e_ax, Delta, h_x, Gamma)
 
     assert np.max(np.abs(numerical_dos - analytical_dos)) < 1e-12
