@@ -84,18 +84,6 @@ class UsadelProblem:
 
         self.use_dense = use_dense
 
-        self.assemble_fns = gen_assemble_fns(
-            D=self.D,
-            diff_ops=self.diff_ops,
-            h_x=self.h_x,
-            h_y=self.h_y,
-            h_z=self.h_z,
-            tau_so_inv=self.tau_so_inv,
-            tau_sf_inv=self.tau_sf_inv,
-            Gamma=self.Gamma,
-            use_dense=self.use_dense,
-        )
-
         self.Delta = np.ones((Nsites), dtype=float)
         self.F_sn = None
 
@@ -114,7 +102,27 @@ class UsadelProblem:
         self.M_z_r = None
         self.M_0_r = None
 
-        # Calculate useful parameters
+        # Generate assembly functions
+        self.assemble_fns = gen_assemble_fns(
+            D=self.D,
+            diff_ops=self.diff_ops,
+            h_x=self.h_x,
+            h_y=self.h_y,
+            h_z=self.h_z,
+            tau_so_inv=self.tau_so_inv,
+            tau_sf_inv=self.tau_sf_inv,
+            Gamma=self.Gamma,
+            use_dense=self.use_dense,
+        )
+        
+        # Calculate useful scales
+        self._calculate_scales()
+        
+    def _calculate_scales(self):
+        """
+        Calculate useful scales.
+        """
+        
         self.Delta_00 = self.T_c0 * 1.7652
         self.h_c0 = self.Delta_00 / np.sqrt(2)
         self.xi_00 = np.sqrt(self.D / self.Delta_00)
@@ -198,6 +206,7 @@ class UsadelProblem:
         if Gamma is not None:
             self.Gamma = Gamma
 
+        # Generate assembly functions
         self.assemble_fns = gen_assemble_fns(
             D=self.D,
             diff_ops=self.diff_ops,
@@ -209,6 +218,9 @@ class UsadelProblem:
             Gamma=self.Gamma,
             use_dense=self.use_dense,
         )
+        
+        # Calculate useful scales
+        self._calculate_scales()
 
     def solve_self_consistent(
         self,
@@ -357,7 +369,7 @@ class UsadelProblem:
         else:
             raise Exception("Error.")
 
-    def anomalous_correlator(self):
+    def get_anomalous_correlator(self):
         """
         Return the anomalous correlator.
 
@@ -376,7 +388,7 @@ class UsadelProblem:
             np.real(-1j * self.M_z_r * np.cos(self.theta_r)),
         )
 
-    def spin_polarization(self):
+    def get_spin_polarization(self):
         """
         Return the local spin-polarization at finite temperature.
 
@@ -385,8 +397,8 @@ class UsadelProblem:
             The local polarization
         """
 
-        return (
-            np.sum(self.M_x_i * np.sin(theta_i), axis=0).real,
-            np.sum(self.M_y_i * np.sin(theta_i), axis=0).real,
-            np.sum(self.M_z_i * np.sin(theta_i), axis=0).real,
-        )
+        return (2 * np.pi * self.T) * np.array((
+            np.sum(1j * self.M_x_i * np.sin(self.theta_i), axis=0).real,
+            np.sum(1j * self.M_y_i * np.sin(self.theta_i), axis=0).real,
+            np.sum(1j * self.M_z_i * np.sin(self.theta_i), axis=0).real,
+        ))
