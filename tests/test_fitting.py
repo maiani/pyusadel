@@ -3,7 +3,6 @@ from pyusadel import UsadelProblem, thermal_broadening, trivial_diffops, fit_nis
 
 
 def test_fitting():
-
     Nsites = 1
 
     do = trivial_diffops()

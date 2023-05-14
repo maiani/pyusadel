@@ -76,8 +76,8 @@ f_\mathrm{sn} = N_0 \pi T \sum_{\omega_n>0} \mathrm{tr} \Big\{&(\omega_n + i \bo
 \begin{split}
 f_\mathrm{sn} = N_0 \pi T \sum_{\omega_n>0} \Big\{ &4 \omega_n - 2 M_0 (2 \omega_n \cos\theta + \Delta\sin\theta) + 4 (M_x h_x + M_y h_y) \sin\theta + \\
 &D \left[(\nabla \theta)^2+ (\nabla M_0)^2 - (\nabla M_x)^2 - (\nabla M_y)^2 \right] + \\
-&\frac{1}{4}\Big[3\Big(\tau_\mathrm{so}^{-1} + \tau_\mathrm{sf}^{-1}) - 3\Big(\tau_\mathrm{so}^{-1} + \tau_\mathrm{sf}^{-1}\cos(2\theta) )]M_0^2
--\Big(\tau_\mathrm{so}^{-1} - \tau_\mathrm{sf}^{-1})\cos(2\theta) ](M_x^2+M_y^2+M_z^2)
+&\frac{1}{4}\Big[3\Big(\tau_\mathrm{so}^{-1} + \tau_\mathrm{sf}^{-1}\Big) - 3\Big(\tau_\mathrm{so}^{-1} + \tau_\mathrm{sf}^{-1}\cos(2\theta)\Big)\Big] M_0^2
+-\Big(\tau_\mathrm{so}^{-1} - \tau_\mathrm{sf}^{-1}\Big)\cos(2\theta) (M_x^2+M_y^2+M_z^2)
 \Big\}
 \end{split}
 \end{equation}
@@ -98,22 +98,22 @@ f_2(\theta, M_x, M_y) = 0
 where
 
 \begin{equation}
-f_0 = D\nabla^2\theta +2 \sqrt{1 + M_x^2 + M_y^2} ( \Delta\cos\theta - \omega_n \sin\theta) - 2  (h_x M_x + h_y M_y)\cos\theta-\frac{(2 M_0^2 + 1) \sin(2\theta)}{4\tau_\mathrm{sf}}=0,
+f_0 = D\nabla^2\theta +2 M_0 ( \Delta\cos\theta - \omega_n \sin\theta) - 2  (h_x M_x + h_y M_y)\cos\theta-\Big[ \frac{(2 M_0^2 + 1)}{4\tau_\mathrm{sf}}+2\frac{(2 M_0^2 - 1)}{\tau_\mathrm{ob}} \Big] \sin(2\theta)=0,
 \end{equation}
 
 \begin{equation}
 \begin{split}
-f_1 = &D\left(M_x \nabla^2 \sqrt{1 + M_x^2 + M_y^2} -  \sqrt{1 + M_x^2 + M_y^2} \nabla^2 M_x \right)
-+2 M_x ( \Delta \sin\theta +\omega_n\cos\theta) - 2  h_x \sqrt{1 + M_x^2 + M_y^2}\sin\theta + \\
-&\Big[\frac{1}{\tau_\mathrm{so}}+ \frac{1}{2 \tau_\mathrm{sf}}\cos(2\theta)] M_0 M_x= 0,
+f_1 = &D\left(M_x \nabla^2 M_0 -  M_0 \nabla^2 M_x \right)
++2 M_x ( \Delta \sin\theta +\omega_n\cos\theta) - 2  h_x M_0\sin\theta + \\
+&\Big[\frac{1}{\tau_\mathrm{so}}+ \big(\frac{1}{2 \tau_\mathrm{sf}}+\frac{4}{\tau_\mathrm{ob}}\big)\cos(2\theta)\Big]  M_0 M_x= 0,
 \end{split}
 \end{equation}
 
 \begin{equation}
 \begin{split}
-f_2 =  &D\left(M_y \nabla^2 \sqrt{1 + M_x^2 + M_y^2} -  \sqrt{1 + M_x^2 + M_y^2} \nabla^2 M_y \right)
-+2 M_y ( \Delta \sin\theta + \omega_n\cos\theta) - 2 h_y \sqrt{1 + M_x^2 + M_y^2} \sin\theta + \\
-&\Big[\frac{1}{\tau_\mathrm{so}}+ \frac{1}{2 \tau_\mathrm{sf}}\cos(2\theta)] M_0 M_y = 0.
+f_2 =  &D\left(M_y \nabla^2 M_0 -  M_0 \nabla^2 M_y \right)
++2 M_y ( \Delta \sin\theta + \omega_n\cos\theta) - 2 h_y M_0 \sin\theta + \\
+&\Big[\frac{1}{\tau_\mathrm{so}}+ \big(\frac{1}{2 \tau_\mathrm{sf}}+\frac{4}{\tau_\mathrm{ob}}\big)\cos(2\theta)\Big]  M_0 M_y = 0.
 \end{split}
 \end{equation}
 
@@ -148,33 +148,35 @@ one gets
 where
 
 \begin{equation}
-\frac{\delta f_0}{\delta \theta} = (D\nabla^2+ 2 M_0\left(-\Delta\sin\theta - \omega\cos\theta\right)+ 2 (h_x M_x + h_y M_y) \sin\theta -\frac{2M_0^2 + 1}{2 \tau_\mathrm{sf}}\cos(2 \theta)
+\frac{\delta f_0}{\delta \theta} = (D\nabla^2+ 2 M_0\left(-\Delta\sin\theta - \omega\cos\theta\right)+ 2 (h_x M_x + h_y M_y) \sin\theta - \Big[ \frac{2M_0^2 + 1}{2 \tau_\mathrm{sf}} + 4\frac{(2 M_0^2 - 1)}{\tau_\mathrm{ob}}\Big]\cos(2\theta)
 \end{equation}
 
 
 \begin{equation}
-\frac{\delta f_0}{\delta M_x} = 2 \frac{M_x}{M_0} (\Delta\cos\theta - \omega\sin\theta)   - 2 h_x \cos\theta - \frac{M_x}{\tau_\mathrm{sf}}\sin(2\theta)
+\frac{\delta f_0}{\delta M_x} = 2 \frac{M_x}{M_0} (\Delta\cos\theta - \omega\sin\theta)   - 2 h_x \cos\theta -  \Big[\frac{1}{\tau_\mathrm{sf}} + \frac{8}{\tau_\mathrm{ob}}\Big] M_x \sin(2\theta)
 \end{equation}
 
 
 \begin{equation}
-\frac{\delta f_0}{\delta M_y} = 2 \frac{M_y}{M_0} (\Delta\cos\theta - \omega\sin\theta)   - 2 h_y \cos\theta - \frac{M_y}{\tau_\mathrm{sf}}\sin(2\theta)
+\frac{\delta f_0}{\delta M_y} = 2 \frac{M_y}{M_0} (\Delta\cos\theta - \omega\sin\theta)   - 2 h_y \cos\theta - \Big[\frac{1}{\tau_\mathrm{sf}} + \frac{8}{\tau_\mathrm{ob}}\Big]  M_y \sin(2\theta)
 \end{equation}
 
 \begin{equation}
-\frac{\delta f_1}{\delta \theta} = 2 M_x(\Delta\cos\theta - \omega_n\sin\theta) - 2 h_x M_0 \cos \theta - \frac{\sin(2\theta)}{\tau_\mathrm{sf}} M_0 M_x
+\frac{\delta f_1}{\delta \theta} = 2 M_x(\Delta\cos\theta - \omega_n\sin\theta) - 2 h_x M_0 \cos \theta - \Big[\frac{1}{\tau_\mathrm{sf}} + \frac{8}{\tau_\mathrm{ob}}\Big] M_0 M_x \sin(2\theta)
 \end{equation}
 
 \begin{equation}
 \begin{split}
 \frac{\delta f_1}{\delta M_x} = &D\left( \nabla^2 M_0 + M_x \nabla^2 \frac{M_x}{M_0} - \frac{M_x}{M_0} \nabla^2 M_x -M_0 \nabla^2  \right) +2( \Delta \sin\theta + \omega_n \cos\theta) \\
-&-2 \sin\theta h_x \frac{M_x}{M_0} + \Big[\frac{1}{\tau_\mathrm{so}} + \frac{\cos(2 \theta)}{2 \tau_\mathrm{sf}}] \Big(\frac{M_x^2}{M_0} +M_0)
+&-2 \sin\theta h_x \frac{M_x}{M_0} + \Big[\frac{1}{\tau_\mathrm{so}} + \Big(\frac{1}{2 \tau_\mathrm{sf}}+ \frac{4}{\tau_\mathrm{ob}}\Big)\cos(2 \theta) \Big] \Big(\frac{M_x^2}{M_0} + M_0\Big)
 \end{split}
 \end{equation}
 
 \begin{equation}
-\frac{\delta f_1}{\delta M_y} = D\left( M_x \nabla^2 \frac{M_y}{M_0} -  \frac{M_y}{M_0} \nabla^2 \right) -2  \sin\theta h_x \frac{M_y}{M_0} + \Big[\frac{1}{\tau_\mathrm{so}} + \frac{\cos(2 \theta)}{2 \tau_\mathrm{sf}}] \frac{M_x M_y}{M_0}
+\frac{\delta f_1}{\delta M_y} = D\left( M_x \nabla^2 \frac{M_y}{M_0} -  \frac{M_y}{M_0} \nabla^2 \right) -2  \sin\theta h_x \frac{M_y}{M_0} + \Big[\frac{1}{\tau_\mathrm{so}} + \Big(\frac{1}{2 \tau_\mathrm{sf}} + \frac{4}{\tau_\mathrm{ob}}\Big)\cos(2 \theta)\Big] \frac{M_x M_y}{M_0}
 \end{equation}
 and similarly for $\delta f_2$.
 
-+++
+```{code-cell} ipython3
+
+```

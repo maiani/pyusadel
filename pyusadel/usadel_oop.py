@@ -1,6 +1,6 @@
 """
 Code for Usadel equation solver.
-Andrea Maiani, 2022
+Andrea Maiani, 2022-2023
 """
 
 import numpy as np
@@ -9,6 +9,52 @@ from scipy import sparse
 from scipy.sparse import linalg as sla
 from .findiff import DifferentialOperators
 from .usadel import gen_assemble_fns, solve_usadel, solve_usadel_self_consistent
+from typing import Tuple, Optional, Union
+
+
+def check_array(
+    arr: Union[np.ndarray, None],
+    shape: Tuple[int, ...],
+    name: str,
+    dtype: type = float,
+    dvalue: float = 0.0,
+) -> np.ndarray:
+    """
+    Checks if an input array has the correct shape and data type.
+    If None is passed as first argument, it creates a default array
+    with the right shape and default value.
+
+    Parameters
+    ----------
+    arr : Union[np.ndarray, None]
+        The input array to check. If None, a new array is created with
+        the specified shape and dtype.
+    shape : Tuple[int, ...]
+        The expected shape of the array.
+    name : str
+        The name of the array (used in error messages).
+    dtype : type, optional
+        The expected data type of the array, by default float.
+    dvalue : float, optional
+        The default value to use when creating a new array, by default 0.0.
+
+    Returns
+    -------
+    np.ndarray
+        The input array if it has the correct shape and data type, or a
+        new array with the specified shape and dtype if arr is None.
+    """
+
+    if arr is None:
+        arr = np.ones(shape, dtype=dtype) * dvalue
+    elif not isinstance(arr, np.ndarray):
+        raise ValueError(f"{name} must be a numpy array")
+    elif arr.shape != shape:
+        raise ValueError(f"{name} must have shape {shape}")
+    elif arr.dtype != dtype:
+        raise ValueError(f"{name} must have type {dtype}")
+
+    return arr
 
 
 class UsadelProblem:
@@ -21,13 +67,14 @@ class UsadelProblem:
         self,
         Nsites: int,
         diff_ops: DifferentialOperators,
-        h_x: np.ndarray,
-        h_y: np.ndarray,
-        h_z: np.ndarray,
-        tau_sf_inv: np.ndarray,
-        tau_so_inv: np.ndarray,
-        D: float,
-        T: float,
+        h_x: Optional[np.ndarray] = None,
+        h_y: Optional[np.ndarray] = None,
+        h_z: Optional[np.ndarray] = None,
+        tau_sf_inv: Optional[np.ndarray] = None,
+        tau_so_inv: Optional[np.ndarray] = None,
+        tau_ob_inv: Optional[np.ndarray] = None,
+        D: float = 0,
+        T: float = 0,
         T_c0: float = 1,
         Gamma: float = 1e-3,
         use_dense: bool = False,
@@ -49,6 +96,8 @@ class UsadelProblem:
             Inverse of spin-flip scattering time.
         tau_so_inv: np.ndarray
             Inverse of spin-orbit scattering time.
+        tau_ob_inv: np.ndarray
+            Inverse of orbital depairing scattering time.
         D: float
             Diffusion constant.
         T: float
@@ -62,20 +111,14 @@ class UsadelProblem:
         self.Nsites = Nsites
         self.diff_ops = diff_ops
 
-        if (
-            h_x.shape != (Nsites,)
-            or h_y.shape != (Nsites,)
-            or h_z.shape != (Nsites,)
-            or tau_sf_inv.shape != (Nsites,)
-            or tau_so_inv.shape != (Nsites,)
-        ):
-            raise Exception("Dimensions doesn't match.")
-        else:
-            self.h_x = h_x
-            self.h_y = h_y
-            self.h_z = h_z
-            self.tau_sf_inv = tau_sf_inv
-            self.tau_so_inv = tau_so_inv
+        shape = (Nsites,)
+
+        self.h_x = check_array(h_x, shape, "h_x")
+        self.h_y = check_array(h_y, shape, "h_y")
+        self.h_z = check_array(h_z, shape, "h_z")
+        self.tau_sf_inv = check_array(tau_sf_inv, shape, "tau_sf_inv")
+        self.tau_so_inv = check_array(tau_so_inv, shape, "tau_so_inv")
+        self.tau_ob_inv = check_array(tau_ob_inv, shape, "tau_ob_inv")
 
         self.D = D
         self.T = T
@@ -111,18 +154,19 @@ class UsadelProblem:
             h_z=self.h_z,
             tau_so_inv=self.tau_so_inv,
             tau_sf_inv=self.tau_sf_inv,
+            tau_ob_inv=self.tau_ob_inv,
             Gamma=self.Gamma,
             use_dense=self.use_dense,
         )
-        
+
         # Calculate useful scales
         self._calculate_scales()
-        
+
     def _calculate_scales(self):
         """
         Calculate useful scales.
         """
-        
+
         self.Delta_00 = self.T_c0 * 1.7652
         self.h_c0 = self.Delta_00 / np.sqrt(2)
         self.xi_00 = np.sqrt(self.D / self.Delta_00)
@@ -194,6 +238,12 @@ class UsadelProblem:
             else:
                 self.tau_so_inv = tau_so_inv
 
+        if tau_ob_inv is not None:
+            if tau_ob_inv.shape != (self.Nsites,):
+                raise Exception("Dimensions doesn't match.")
+            else:
+                self.tau_ob_inv = tau_ob_inv
+
         if D is not None:
             self.D = D
 
@@ -215,10 +265,11 @@ class UsadelProblem:
             h_z=self.h_z,
             tau_so_inv=self.tau_so_inv,
             tau_sf_inv=self.tau_sf_inv,
+            tau_ob_inv=self.tau_ob_inv,
             Gamma=self.Gamma,
             use_dense=self.use_dense,
         )
-        
+
         # Calculate useful scales
         self._calculate_scales()
 
@@ -397,8 +448,10 @@ class UsadelProblem:
             The local polarization
         """
 
-        return (2 * np.pi * self.T) * np.array((
-            np.sum(1j * self.M_x_i * np.sin(self.theta_i), axis=0).real,
-            np.sum(1j * self.M_y_i * np.sin(self.theta_i), axis=0).real,
-            np.sum(1j * self.M_z_i * np.sin(self.theta_i), axis=0).real,
-        ))
+        return (2 * np.pi * self.T) * np.array(
+            (
+                np.sum(1j * self.M_x_i * np.sin(self.theta_i), axis=0).real,
+                np.sum(1j * self.M_y_i * np.sin(self.theta_i), axis=0).real,
+                np.sum(1j * self.M_z_i * np.sin(self.theta_i), axis=0).real,
+            )
+        )
