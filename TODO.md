@@ -2,6 +2,8 @@
 
 ## Features
 - Getter/Setter for Delta
+- Orbital effects
+- Mangetic field self-consistency
 
 ## Tests
 - Add self-consistency test
