@@ -1,8 +1,5 @@
 # Changelog
 
-## Future
-
-
 ## 0.02
 - Orbital depairing term.
 - h_z.

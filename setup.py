@@ -1,14 +1,14 @@
-import setuptools
+from setuptools import setup, find_packages
 
 with open("README.md", "r") as fh:
     description = fh.read()
 
-setuptools.setup(
+setup(
     name="pyusadel",
-    version="0.0.1",
+    version="0.0.2",
     author="Andrea Maiani",
-    author_email="andrea.maiani@nbi.ku.dk",
-    packages=["pyusadel"],
+    author_email="andreamaiani@gmail.com",
+    packages=find_packages(),
     description="Usadel equation solver",
     long_description=description,
     long_description_content_type="text/markdown",
