@@ -1,26 +1,10 @@
----
-jupytext:
-  formats: ipynb,md:myst
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.14.5
-kernelspec:
-  display_name: Python [conda env:qenv310] *
-  language: python
-  name: conda-env-qenv310-py
----
-
 # Usadel Equations
-
-+++
 
 ## Introduction to Usadel equations
 In the time-reversed hole basis, $\psi = (\psi_\uparrow, \psi_\downarrow, -\psi_\downarrow, \psi_\uparrow)$, the Usadel equation in Matsubara representation reads
-\begin{equation}
+$$
 D \nabla\cdot(\check{g}\nabla\check{g}) - [\omega_n \tau_3 \sigma_0 + i \boldsymbol{h}\cdot\boldsymbol{\sigma} \tau_3 + \check{\Delta} +\check{\Sigma}, \check{g}] = 0
-    \end{equation}
+    $$
 that needs to be complemented with the normalization constraint $\check{g}^2 = 1$. 
 Moreover, since we are considering a conventional singlet s-wave pairing mechanism, we set $\check{\Delta}= \Delta \tau_1$.
 
@@ -36,8 +20,6 @@ Relaxation due to orbital-depairing can be included adding the self-energy
 \end{align}
 with $\tau_{orb}^{-1}= D e^2 B^2 d^2 / 6$
 
-+++
-
 ## Ivanov-Fominov parametrization
 
 We adopt the $(\theta, \boldsymbol{M})$ in which the quasiclassical propagator reads
@@ -47,13 +29,13 @@ $$
 with $M_0^2 - \mathbf{M}^2 = 1$.
 
 In this parametrization, the Usadel equation can be split in a pair of scalar (the $i\tau_2 \sigma_0$ component). and a vector (the $\tau_2 \boldsymbol{\sigma}$) coupled PDEs
-\begin{equation}
+$$
 D\nabla^2\theta+ 2M_0(\Delta\cos\theta-\omega_n\sin\theta) - 2 \cos\theta \boldsymbol{h}\cdot\boldsymbol{M}-\frac{(2 M_0^2 + 1) \sin(2\theta)}{4\tau_\mathrm{sf}}-2\frac{(2 M_0^2 - 1) \sin(2\theta)}{\tau_\mathrm{ob}}=0,
-\end{equation}
+$$
 
-\begin{equation}
+$$
 D\left(\boldsymbol{M}\nabla^2M_0  - M_0\nabla^2\boldsymbol{M}\right) +2 \boldsymbol{M} (\Delta \sin\theta + \omega_n \cos\theta) - 2  \sin\theta \boldsymbol{h} M_0  + \Big[\frac{1}{\tau_\mathrm{so}}+ \big(\frac{1}{2 \tau_\mathrm{sf}}+\frac{4}{\tau_\mathrm{ob}}\big)\cos(2\theta)\Big] M_0 \mathbf{M}= 0.
-\end{equation}
+$$
 while the gap equation reads 
 $$
 \Delta =  \gamma \int_{-\omega_D}^{+\omega_D} \frac{\mathrm{tr}{\tau_x\sigma_0 g}}{2}
@@ -64,15 +46,15 @@ $$\Delta \log \left(\frac{T}{T_{c0}}\right) = 2\pi T \sum_{\omega_n>0}M_0 \sin\t
 With this parametrization, all the field involved are real in the imaginary axis. The real axis can be obtained with the substitution $\omega_n \to - i \omega$.
 
 To evaluate the stability of the superconductive phase, we need to calculate the free energy that reads
-\begin{equation}
+$$
 \begin{split}
 f_\mathrm{sn} = N_0 \pi T \sum_{\omega_n>0} \mathrm{tr} \Big\{&(\omega_n + i \boldsymbol{h}\cdot\boldsymbol{\sigma})(1-\tau_z g) - \frac{1}{2}(\Delta \tau_+ + \Delta^\dagger \tau_-)g + \frac{D}{4}(\nabla\check{g})^2 \\
 &+\frac{1}{16 \tau_\mathrm{so}}\Big[3 - (\boldsymbol{\sigma} \check{g}) \cdot (\boldsymbol{\sigma} \check{g})]
 + \frac{1}{16 \tau_\mathrm{sf}}[3-(\boldsymbol{\sigma}\tau_3\check{g})\cdot(\boldsymbol{\sigma}\tau_3\check{g})] \Big\}
 \end{split}
-\end{equation}
+$$
 
-\begin{equation}
+$$
 \begin{split}
 f_\mathrm{sn} = N_0 \pi T \sum_{\omega_n>0} \Big\{ &4 \omega_n - 2 M_0 (2 \omega_n \cos\theta + \Delta\sin\theta) + 4 (M_x h_x + M_y h_y) \sin\theta + \\
 &D \left[(\nabla \theta)^2+ (\nabla M_0)^2 - (\nabla M_x)^2 - (\nabla M_y)^2 \right] + \\
@@ -80,54 +62,52 @@ f_\mathrm{sn} = N_0 \pi T \sum_{\omega_n>0} \Big\{ &4 \omega_n - 2 M_0 (2 \omega
 -\Big(\tau_\mathrm{so}^{-1} - \tau_\mathrm{sf}^{-1}\Big)\cos(2\theta) (M_x^2+M_y^2+M_z^2)
 \Big\}
 \end{split}
-\end{equation}
-
-+++
+$$
 
 ## Numerical method
 
 Since $\mathbf{h}$ lies in the $(x, y)$ plane, $M_z = 0$. We then use the normalization condition $M_0^2  = \sqrt{ 1 + M_x^2 + M_y^2}$ to get rid of $M_0$ too. Therefore the coupled system of PDEs reads
 
-\begin{equation}
+$$
 \begin{cases}
 f_0(\theta, M_x, M_y) = 0\\
 f_1(\theta, M_x, M_y) = 0\\
 f_2(\theta, M_x, M_y) = 0
 \end{cases}
-\end{equation}
+$$
 where
 
-\begin{equation}
+$$
 f_0 = D\nabla^2\theta +2 M_0 ( \Delta\cos\theta - \omega_n \sin\theta) - 2  (h_x M_x + h_y M_y)\cos\theta-\Big[ \frac{(2 M_0^2 + 1)}{4\tau_\mathrm{sf}}+2\frac{(2 M_0^2 - 1)}{\tau_\mathrm{ob}} \Big] \sin(2\theta)=0,
-\end{equation}
+$$
 
-\begin{equation}
+$$
 \begin{split}
 f_1 = &D\left(M_x \nabla^2 M_0 -  M_0 \nabla^2 M_x \right)
 +2 M_x ( \Delta \sin\theta +\omega_n\cos\theta) - 2  h_x M_0\sin\theta + \\
 &\Big[\frac{1}{\tau_\mathrm{so}}+ \big(\frac{1}{2 \tau_\mathrm{sf}}+\frac{4}{\tau_\mathrm{ob}}\big)\cos(2\theta)\Big]  M_0 M_x= 0,
 \end{split}
-\end{equation}
+$$
 
-\begin{equation}
+$$
 \begin{split}
 f_2 =  &D\left(M_y \nabla^2 M_0 -  M_0 \nabla^2 M_y \right)
 +2 M_y ( \Delta \sin\theta + \omega_n\cos\theta) - 2 h_y M_0 \sin\theta + \\
 &\Big[\frac{1}{\tau_\mathrm{so}}+ \big(\frac{1}{2 \tau_\mathrm{sf}}+\frac{4}{\tau_\mathrm{ob}}\big)\cos(2\theta)\Big]  M_0 M_y = 0.
 \end{split}
-\end{equation}
+$$
 
 
 To solve the fully coupled problem, we use Newton's method. We define the next iteration as $\theta_{t+1} = \theta_{t} + \tilde{\theta}$ and similarly for $M_x$ and $M_y$. By setting
-\begin{equation}
+$$
 \begin{cases}
 f_0(\theta_{t} + \tilde{\theta}, M_x + \tilde{M_x}, M_y + \tilde{M_y}) = 0\\
 f_1(\theta_{t} + \tilde{\theta}, M_x + \tilde{M_x}, M_y + \tilde{M_y}) = 0\\
 f_2(\theta_{t} + \tilde{\theta}, M_x + \tilde{M_x}, M_y + \tilde{M_y}) = 0
 \end{cases}
-\end{equation}
+$$
 one gets
-\begin{equation}
+$$
 \begin{pmatrix}
 \frac{\delta f_0}{\delta \theta} & \frac{\delta f_0}{\delta M_x} & \frac{\delta f_0}{\delta M_y} \\
 \frac{\delta f_1}{\delta \theta} & \frac{\delta f_1}{\delta M_x} & \frac{\delta f_1}{\delta M_y} \\
@@ -144,39 +124,40 @@ one gets
 -f_1(\theta_t, M_{x, t}, M_{y, t} ) \\
 -f_2(\theta_t, M_{x, t}, M_{y, t} ) \\
 \end{pmatrix}
-\end{equation}
+$$
 where
 
-\begin{equation}
+$$
 \frac{\delta f_0}{\delta \theta} = (D\nabla^2+ 2 M_0\left(-\Delta\sin\theta - \omega\cos\theta\right)+ 2 (h_x M_x + h_y M_y) \sin\theta - \Big[ \frac{2M_0^2 + 1}{2 \tau_\mathrm{sf}} + 4\frac{(2 M_0^2 - 1)}{\tau_\mathrm{ob}}\Big]\cos(2\theta)
-\end{equation}
+$$
 
 
-\begin{equation}
+$$
 \frac{\delta f_0}{\delta M_x} = 2 \frac{M_x}{M_0} (\Delta\cos\theta - \omega\sin\theta)   - 2 h_x \cos\theta -  \Big[\frac{1}{\tau_\mathrm{sf}} + \frac{8}{\tau_\mathrm{ob}}\Big] M_x \sin(2\theta)
-\end{equation}
+$$
 
 
-\begin{equation}
+$$
 \frac{\delta f_0}{\delta M_y} = 2 \frac{M_y}{M_0} (\Delta\cos\theta - \omega\sin\theta)   - 2 h_y \cos\theta - \Big[\frac{1}{\tau_\mathrm{sf}} + \frac{8}{\tau_\mathrm{ob}}\Big]  M_y \sin(2\theta)
-\end{equation}
+$$
 
-\begin{equation}
+$$
 \frac{\delta f_1}{\delta \theta} = 2 M_x(\Delta\cos\theta - \omega_n\sin\theta) - 2 h_x M_0 \cos \theta - \Big[\frac{1}{\tau_\mathrm{sf}} + \frac{8}{\tau_\mathrm{ob}}\Big] M_0 M_x \sin(2\theta)
-\end{equation}
+$$
 
-\begin{equation}
+$$
 \begin{split}
 \frac{\delta f_1}{\delta M_x} = &D\left( \nabla^2 M_0 + M_x \nabla^2 \frac{M_x}{M_0} - \frac{M_x}{M_0} \nabla^2 M_x -M_0 \nabla^2  \right) +2( \Delta \sin\theta + \omega_n \cos\theta) \\
 &-2 \sin\theta h_x \frac{M_x}{M_0} + \Big[\frac{1}{\tau_\mathrm{so}} + \Big(\frac{1}{2 \tau_\mathrm{sf}}+ \frac{4}{\tau_\mathrm{ob}}\Big)\cos(2 \theta) \Big] \Big(\frac{M_x^2}{M_0} + M_0\Big)
 \end{split}
-\end{equation}
+$$
 
-\begin{equation}
+$$
 \frac{\delta f_1}{\delta M_y} = D\left( M_x \nabla^2 \frac{M_y}{M_0} -  \frac{M_y}{M_0} \nabla^2 \right) -2  \sin\theta h_x \frac{M_y}{M_0} + \Big[\frac{1}{\tau_\mathrm{so}} + \Big(\frac{1}{2 \tau_\mathrm{sf}} + \frac{4}{\tau_\mathrm{ob}}\Big)\cos(2 \theta)\Big] \frac{M_x M_y}{M_0}
-\end{equation}
+$$
 and similarly for $\delta f_2$.
 
-```{code-cell} ipython3
+
+```python
 
 ```

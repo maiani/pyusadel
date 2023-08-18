@@ -1,0 +1,36 @@
+#!/bin/bash
+
+NOTEBOOKS=$(git diff --cached --name-only --diff-filter=ACMRTUXB | grep "^docs/.*\.ipynb$")
+
+if [ -n "$NOTEBOOKS" ]; then
+    echo "Notebook files are being committed in the docs subfolder, checking and generating missing Markdown files"
+    for notebook_file in $NOTEBOOKS; do
+        notebook_name=$(basename "$notebook_file" .ipynb)
+        markdown_file="docs/${notebook_name}.md"
+
+        if [ ! -f "$markdown_file" ]; then
+            echo "Generating Markdown file for $notebook_file"
+            jupyter nbconvert --to markdown "$notebook_file" --output "${notebook_name}.md"
+            git add "docs/${notebook_name}.md"
+        fi
+    done
+fi
+
+
+# NOTEBOOKS=$(git log --name-only HEAD^.. | grep "^docs/.*\.ipynb$")
+
+# if [ -n "$NOTEBOOKS" ]; then
+#     echo "Notebook files were committed in the docs subfolder, checking and generating missing Markdown files"
+#     for notebook_file in $NOTEBOOKS; do
+#         notebook_name=$(basename "$notebook_file" .ipynb)
+#         markdown_file="docs/${notebook_name}.md"
+
+#         if [ ! -f "$markdown_file" ]; then
+#             echo "Generating Markdown file for $notebook_file"
+#             jupyter nbconvert --to markdown "${notebook_file}" # --output "${markdown_file}"
+#         fi
+#     done
+
+#     git add docs/*.md
+#     git commit --amend -C HEAD --no-verify
+# fi
