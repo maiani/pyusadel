@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.02
+## 0.2.0
 - Orbital depairing term.
 - h_z.
 - Included thermal broadening.
@@ -11,5 +11,5 @@
 - New flexible fitting routine.
 - Thermal broadening
 
-## 0.01
+## 0.1.0
 - Initial version.
