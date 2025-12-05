@@ -26,6 +26,16 @@ To install pyUsadel, run the following command:
 ## Usage
 To use pyUsadel, simply import the library in your Python script and you can access the functions and classes provided by pyUsadel to build and run your simulations. Some example simulations are included in under the folder `doc/examples/.`
 
+## Generating documentation
+Documentation is built with [Sphinx](https://www.sphinx-doc.org/). Install the optional documentation dependency and run the generator from the repository root:
+
+```
+pip install -r docs/requirements.txt
+python docs/generate_docs.py
+```
+
+The resulting HTML files are written to `docs/_build/html/`.
+
 ## Current limitations
  - Only magnetization in the x-y plane is supported.
  - No orbital effects.
