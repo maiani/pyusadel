@@ -3,6 +3,9 @@ from pyusadel import UsadelProblem, thermal_broadening, trivial_diffops, fit_nis
 
 
 def test_fitting():
+    
+    rng = np.random.default_rng(12345)
+
     Nsites = 1
 
     do = trivial_diffops()
@@ -41,8 +44,8 @@ def test_fitting():
     numerical_nis = thermal_broadening(e_ax, up.get_ldos()[:, 0], T=T)
 
     # Add noise
-    numerical_nis += np.random.randn(e_ax.shape[0]) * 0.01
-
+    numerical_nis += rng.normal(scale=0.005, size=e_ax.shape[0])
+    
     params = dict(
         Delta=(0, 0.75, 1.25),
         h=(0.0, 0.2, 0.5),

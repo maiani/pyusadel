@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0 (20-12-2025)
+- Implement the KL boundary condition (only 1D)
+- Implement Bayesian fitting
+- Clean up and update the codebase
+
 ## 0.2.0
 - Orbital depairing term.
 - h_z.

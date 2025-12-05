@@ -1,18 +1,23 @@
 # pyUsadel
 A toolkit for modeling superconductor heterostructure with Usadel equations written in python.
-This is code is still in a preliminary stage and work-in-progress. There is no documentation available and no stable API.
+This is code is still in a preliminary stage and work-in-progress. 
+There is no documentation available and no stable API.
 
 
 ## Table of Contents
-- [Description](#description)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Current limitations](#current)
-- [Contributing](#contributing)
-- [License](#license)
+- [pyUsadel](#pyusadel)
+  - [Table of Contents](#table-of-contents)
+  - [Description](#description)
+  - [Installation](#installation)
+  - [Usage](#usage)
+  - [Current limitations](#current-limitations)
+  - [Contributing](#contributing)
+  - [License](#license)
+  - [Authors](#authors)
 
 ## Description
-pyUsadel is a python library for modeling superconductor heterostructures using Usadel equations. It provides a flexible and user-friendly interface for simulating and analyzing the behavior of these systems.
+pyUsadel is a python library for modeling superconductor heterostructures using Usadel equations. 
+It provides a flexible and user-friendly interface for simulating and analyzing the behavior of these systems.
 
 ## Installation
 To install pyUsadel, you will need to have the following dependencies installed:

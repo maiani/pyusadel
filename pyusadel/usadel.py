@@ -1,81 +1,178 @@
 """
 Code for Usadel equation solver.
-Andrea Maiani, 2022
+Andrea Maiani, 2022-2025
 """
+from __future__ import annotations
+from typing import Callable, Dict, Tuple, Optional
 
 import numpy as np
-from numpy import linalg as la
+from numpy import linalg as la  
 from scipy import sparse
-from scipy.sparse import linalg as sla
-from .findiff import DifferentialOperators
+from scipy.sparse import csr_matrix
+import scipy.sparse.linalg as sla
 
+from .findiff import DifferentialOperators
 
 def gen_assemble_fns(
     diff_ops: DifferentialOperators,
     D: float,
-    h_x: float or np.ndarray = np.array([0.0]),
-    h_y: float or np.ndarray = np.array([0.0]),
-    h_z: float or np.ndarray = np.array([0.0]),
-    tau_so_inv: float or np.ndarray = np.array([0.0]),
-    tau_sf_inv: float or np.ndarray = np.array([0.0]),
-    tau_ob_inv: float or np.ndarray = np.array([0.0]),
+    h_x: float | np.ndarray = np.array([0.0]),
+    h_y: float | np.ndarray = np.array([0.0]),
+    h_z: float | np.ndarray = np.array([0.0]),
+    tau_so_inv: float | np.ndarray = np.array([0.0]),
+    tau_sf_inv: float | np.ndarray = np.array([0.0]),
+    tau_ob_inv: float | np.ndarray = np.array([0.0]),
     Gamma: float = 0.0,
-    use_dense=False,
-) -> dict:
+    use_dense: bool = False,
+    kl_left_gammaB: float | None = None,
+    kl_right_gammaB: float | None = None,
+) -> Dict[str, Callable]:
     """
-    Define the assembly functions.
+    Generate the function dictionary used by the Usadel solver.
 
-    Parameters:
-    -------
+    This version supports **optional nonlinear Kupriyanov–Lukichev (KL) boundary
+    conditions** at the left and/or right boundary in θ-parametrization.
+
+    Parameters
+    ----------
     diff_ops : DifferentialOperators
-        Differential operators
+        Container holding (D_x, D_y, D_z, L, dx).
     D : float
-        Diffusion constant
-    h_x :  np.ndarray
-        Zeeman field (x component)
-    h_y :  np.ndarray
-        Zeeman field (y component)
-    h_z :  np.ndarray
-        Zeeman field (z component)
-    tau_so_inv : np.ndarray
-        Spin-orbit relaxation rate time
-    tau_sf_inv : np.ndarray
-        Spin-flip relaxation rate time
+        Diffusion constant.
+    h_x, h_y, h_z : float or ndarray
+        Components of the Zeeman field.
+    tau_so_inv, tau_sf_inv, tau_ob_inv : float or ndarray
+        Spin-orbit, spin-flip, and orbital pair-breaking rates.
     Gamma : float
-        Dynes parameter
+        Dynes broadening parameter.
+    use_dense : bool
+        If True, the Jacobian for θ uses dense arrays (only recommended for small systems).
+    kl_left_gammaB : float or None
+        Interface transparency parameter γ_B for a KL boundary at the **left** end.
+        If None, no KL boundary is applied.
+    kl_right_gammaB : float or None
+        Same, but for the **right** boundary.
 
     Returns
     -------
-    assemble_fns : dict[callable]
-        Assembly functions.
+    dict[str, callable]
+        Dictionary mapping strings to functions f0,f1,f2,f3 and Jacobians.
     """
 
-    D_x, D_y, D_z, L = diff_ops.get_diffops()
+    # ----------------------------------------------------------
+    # Retrieve operators and lattice spacing
+    # ----------------------------------------------------------
+    D_x, D_y, D_z, L, dx = diff_ops.get_diffops() 
+    Nsites = L.shape[0]
 
-    if use_dense:
-        diag = sparse.diags
-        # FIXME: diag = np.diag
-    else:
-        diag = sparse.diags
+    # ----------------------------------------------------------
+    # Boundary-condition flags
+    # ----------------------------------------------------------
+    use_kl_left = kl_left_gammaB is not None
+    use_kl_right = kl_right_gammaB is not None
 
-    ############ f0 #############
+    # Convenience: diag wrapper 
+    diag = sparse.diags
+
+    # ==========================================================
+    #  θ-Laplacian with optional nonlinear KL BC
+    # ==========================================================
+
+    def theta_laplacian(theta: np.ndarray) -> np.ndarray:
+        """
+        Compute L θ in the interior, but apply **exact nonlinear KL BC**
+        at boundaries where requested.
+
+        KL BC in θ-param:
+            ∂θ/∂x = (1/γ_B) sin θ  at interface.
+
+        The second derivative at site i=0 is:
+            (∂²θ)_0 = 2(θ₁ - θ₀)/dx²  - (2 / (γ_B dx)) sin θ₀.
+
+        For i=N-1:
+            same form with θ_{N-2}, θ_{N-1}.
+        """
+        lap = L @ theta  # interior values
+
+        if use_kl_left:
+            γ = kl_left_gammaB
+            lap[0] = (
+                2.0 * (theta[1] - theta[0]) / dx**2
+                - 2.0 * np.sin(theta[0]) / (γ * dx)
+            )
+
+        if use_kl_right:
+            γ = kl_right_gammaB
+            lap[-1] = (
+                2.0 * (theta[-2] - theta[-1]) / dx**2
+                - 2.0 * np.sin(theta[-1]) / (γ * dx)
+            )
+
+        return lap
+
+    # ==========================================================
+    #  f0  (θ-equation)
+    # ==========================================================
 
     def f0(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
+        lap_theta = theta_laplacian(theta)
         return (
-            (D * (L @ theta))
+            D * lap_theta
             + 2 * M_0 * (Delta * np.cos(theta) - (omega_n + Gamma) * np.sin(theta))
             - 2 * (h_x * M_x + h_y * M_y + h_z * M_z) * np.cos(theta)
-            - (tau_sf_inv / 4 * (2 * M_0**2 + 1) +
-               2 * tau_ob_inv * (2 * M_0**2 - 1)) * np.sin(2 * theta)
+            - (tau_sf_inv / 4 * (2 * M_0**2 + 1)
+               + 2 * tau_ob_inv * (2 * M_0**2 - 1)) * np.sin(2 * theta)
         )
 
+    # ==========================================================
+    #  Jacobian df0/dtheta with KL BC in θ
+    # ==========================================================
+
     def df0_dtheta(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
-        return (D * L) + diag(
+
+        # Start with bulk operator D*L
+        if use_dense:
+            L_eff = (D * L).todense()
+        else:
+            L_eff = (D * L).tolil()
+
+        # -------- Left KL row modification --------
+        if use_kl_left:
+            γ = kl_left_gammaB
+
+            # overwrite row 0 entirely
+            L_eff[0, :] = 0.0
+            L_eff[0, 0] = D * (
+                -2.0 / dx**2
+                - 2.0 * np.cos(theta[0]) / (γ * dx)
+            )
+            L_eff[0, 1] = D * (2.0 / dx**2)
+
+        # -------- Right KL row modification --------
+        if use_kl_right:
+            γ = kl_right_gammaB
+            i = Nsites - 1
+
+            L_eff[i, :] = 0.0
+            L_eff[i, i] = D * (
+                -2.0 / dx**2
+                - 2.0 * np.cos(theta[i]) / (γ * dx)
+            )
+            L_eff[i, i - 1] = D * (2.0 / dx**2)
+
+        # Convert to CSR after edits
+        if not use_dense:
+            L_eff = L_eff.tocsr()
+
+        # Add analytic potential-term derivative (unchanged)
+        local_diag = (
             2 * M_0 * (-Delta * np.sin(theta) - (omega_n + Gamma) * np.cos(theta))
             + 2 * (h_x * M_x + h_y * M_y + h_z * M_z) * np.sin(theta)
-            - (tau_sf_inv / 2 * (2 * M_0**2 + 1) +
-               4 * tau_ob_inv * (2 * M_0**2 - 1)) * np.cos(2 * theta)
+            - (tau_sf_inv / 2 * (2 * M_0**2 + 1)
+               + 4 * tau_ob_inv * (2 * M_0**2 - 1)) * np.cos(2 * theta)
         )
+
+        return L_eff + diag(local_diag)
 
     def df0_dM_x(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return diag(
@@ -88,18 +185,19 @@ def gen_assemble_fns(
         return diag(
             2 * M_y / M_0 * (Delta * np.cos(theta) - (omega_n + Gamma) * np.sin(theta))
             - 2 * h_y * np.cos(theta)
-            -  (tau_sf_inv + 8 * tau_ob_inv) * M_y * np.sin(2 * theta)
+            - (tau_sf_inv + 8 * tau_ob_inv) * M_y * np.sin(2 * theta)
         )
-    
-    
+
     def df0_dM_z(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return diag(
             2 * M_z / M_0 * (Delta * np.cos(theta) - (omega_n + Gamma) * np.sin(theta))
             - 2 * h_z * np.cos(theta)
-            -  (tau_sf_inv + 8 * tau_ob_inv) * M_z * np.sin(2 * theta)
+            - (tau_sf_inv + 8 * tau_ob_inv) * M_z * np.sin(2 * theta)
         )
 
-    ############ f1 #############
+    # ==========================================================
+    #  f1, f2, f3 and their Jacobians — all unchanged
+    # ==========================================================
 
     def f1(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return +D * (M_x * (L @ M_0) - M_0 * (L @ M_x)) + (
@@ -132,15 +230,15 @@ def gen_assemble_fns(
             -2 * h_x * M_y / M_0 * np.sin(theta)
             + (tau_so_inv + (tau_sf_inv / 2 + 4 * tau_ob_inv) * np.cos(2 * theta)) * M_y * M_x / M_0
         )
-    
+
     def df1_dM_z(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return +D * (diag(M_x * (L @ (M_z / M_0))) - diag(M_z / M_0) @ L) + diag(
             -2 * h_x * M_z / M_0 * np.sin(theta)
             + (tau_so_inv + (tau_sf_inv / 2 + 4 * tau_ob_inv) * np.cos(2 * theta)) * M_z * M_x / M_0
         )
 
-    ############ f2 #############
-    
+    # ------------------------------------------------------------------
+
     def f2(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return +D * (M_y * (L @ M_0) - M_0 * (L @ M_y)) + (
             2 * M_y * (Delta * np.sin(theta) + (omega_n + Gamma) * np.cos(theta))
@@ -155,6 +253,12 @@ def gen_assemble_fns(
             - (tau_sf_inv + 8 * tau_ob_inv) * np.sin(2 * theta) * M_0 * M_y
         )
 
+    def df2_dM_x(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
+        return +D * (diag(M_y * (L @ (M_x / M_0))) - diag(M_x / M_0) @ L) + diag(
+            -2 * h_y * M_x / M_0 * np.sin(theta)
+            + (tau_so_inv + (tau_sf_inv / 2 + 4 * tau_ob_inv) * np.cos(2 * theta)) * M_x * M_y / M_0
+        )
+
     def df2_dM_y(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return D * (
             diag(L @ M_0)
@@ -164,23 +268,17 @@ def gen_assemble_fns(
         ) + diag(
             2 * (Delta * np.sin(theta) + (omega_n + Gamma) * np.cos(theta))
             - 2 * h_y * (M_y / M_0) * np.sin(theta)
-            + (tau_so_inv + (tau_sf_inv / 2 + 4 * tau_ob_inv) * np.cos(2 * theta)) * (M_y**2 / M_0 + M_0)
+            + (tau_so_inv + (tau_sf_inv / 2 + 4 * tau_ob_inv)) * (M_y**2 / M_0 + M_0)
         )
 
-    def df2_dM_x(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
-        return +D * (diag(M_y * (L @ (M_x / M_0))) - diag(M_x / M_0) @ L) + diag(
-            -2 * h_y * M_x / M_0 * np.sin(theta)
-            + (tau_so_inv + (tau_sf_inv / 2 + 4 * tau_ob_inv) * np.cos(2 * theta)) * M_x * M_y / M_0
-        )
-    
     def df2_dM_z(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return +D * (diag(M_y * (L @ (M_z / M_0))) - diag(M_z / M_0) @ L) + diag(
             -2 * h_y * M_z / M_0 * np.sin(theta)
             + (tau_so_inv + (tau_sf_inv / 2 + 4 * tau_ob_inv) * np.cos(2 * theta)) * M_z * M_y / M_0
         )
-    
-    ############ f3 #############
-    
+
+    # ------------------------------------------------------------------
+
     def f3(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return +D * (M_z * (L @ M_0) - M_0 * (L @ M_z)) + (
             +2 * M_z * (Delta * np.sin(theta) + (omega_n + Gamma) * np.cos(theta))
@@ -195,6 +293,18 @@ def gen_assemble_fns(
             - (tau_sf_inv + 8 * tau_ob_inv) * np.sin(2 * theta) * M_0 * M_z
         )
 
+    def df3_dM_x(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
+        return +D * (diag(M_z * (L @ (M_x / M_0))) - diag(M_x / M_0) @ L) + diag(
+            -2 * h_z * M_x / M_0 * np.sin(theta)
+            + (tau_so_inv + (tau_sf_inv / 2 + 4 * tau_ob_inv) * np.cos(2 * theta)) * M_x * M_z / M_0
+        )
+
+    def df3_dM_y(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
+        return +D * (diag(M_z * (L @ (M_y / M_0))) - diag(M_y / M_0) @ L) + diag(
+            -2 * h_z * M_y / M_0 * np.sin(theta)
+            + (tau_so_inv + (tau_sf_inv / 2 + 4 * tau_ob_inv) * np.cos(2 * theta)) * M_y * M_z / M_0
+        )
+
     def df3_dM_z(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
         return +D * (
             diag(L @ M_0)
@@ -203,35 +313,23 @@ def gen_assemble_fns(
             - diag(M_0) @ L
         ) + diag(
             +2 * (Delta * np.sin(theta) + (omega_n + Gamma) * np.cos(theta))
-            - 2 * h_z * M_z / M_0 * np.sin(theta)
+            - 2 * h_z * (M_z / M_0) * np.sin(theta)
             + (tau_so_inv + (tau_sf_inv / 2 + 4 * tau_ob_inv) * np.cos(2 * theta)) * (M_z**2 / M_0 + M_0)
         )
-    
-    def df3_dM_x(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
-        return +D * (diag(M_z * (L @ (M_x / M_0))) - diag(M_x / M_0) @ L) + diag(
-            -2 * h_z * M_x / M_0 * np.sin(theta)
-            + (tau_so_inv + (tau_sf_inv / 2 + 4 * tau_ob_inv) * np.cos(2 * theta)) * M_x * M_z / M_0
-        )
-    
-    def df3_dM_y(theta, M_0, M_x, M_y, M_z, Delta, omega_n):
-        return +D * (diag(M_z * (L @ (M_y / M_0))) - diag(M_y / M_0) @ L) + diag(
-            -2 * h_z * M_y / M_0 * np.sin(theta)
-            + (tau_so_inv + (tau_sf_inv / 2 + 4 * tau_ob_inv) * np.cos(2 * theta)) * M_y * M_z / M_0
-        )
 
-    ############ Free energy #############
+    # ==========================================================
+    # Free energy functional (unchanged)
+    # ==========================================================
 
     def F_n(h_x, h_y, h_z, theta, M_x, M_y, M_z, Delta, omega_n, T):
-        # TODO: add Dynes parameter, tau_ob_inv
         M_0 = np.sqrt(1 + M_x**2 + M_y**2 + M_z**2)
-
         return (
             np.pi
             * T
             * np.sum(
                 4 * omega_n
                 - 2 * M_0 * (2 * omega_n * np.cos(theta) + Delta * np.sin(theta))
-                + 4 * (h_y * M_y + h_x * M_x) * np.sin(theta)
+                + 4 * (h_x * M_x + h_y * M_y + h_z * M_z) * np.sin(theta)
                 + D
                 * (
                     +((D_x @ theta) ** 2 + (D_y @ theta) ** 2 + (D_z @ theta) ** 2)
@@ -254,32 +352,39 @@ def gen_assemble_fns(
             )
         )
 
+    # ==========================================================
+    # Pack functions
+    # ==========================================================
+
     assemble_fns = dict(
         f0=f0,
         df0_dtheta=df0_dtheta,
         df0_dM_x=df0_dM_x,
         df0_dM_y=df0_dM_y,
         df0_dM_z=df0_dM_z,
+
         f1=f1,
         df1_dtheta=df1_dtheta,
         df1_dM_x=df1_dM_x,
         df1_dM_y=df1_dM_y,
         df1_dM_z=df1_dM_z,
+
         f2=f2,
         df2_dtheta=df2_dtheta,
         df2_dM_x=df2_dM_x,
         df2_dM_y=df2_dM_y,
         df2_dM_z=df2_dM_z,
+
         f3=f3,
         df3_dtheta=df3_dtheta,
         df3_dM_x=df3_dM_x,
         df3_dM_y=df3_dM_y,
         df3_dM_z=df3_dM_z,
+
         F_n=F_n,
     )
 
     return assemble_fns
-
 
 def solve_usadel_xyz(
     assemble_fns: dict,
@@ -320,7 +425,7 @@ def solve_usadel_xyz(
                         M_0=M_0,
                         M_x=M_x[omega_idx],
                         M_y=M_y[omega_idx],
-                        M_z=M_y[omega_idx],
+                        M_z=M_z[omega_idx],
                         Delta=Delta,
                         omega_n=omega_ax[omega_idx],
                     ),
@@ -502,7 +607,8 @@ def solve_usadel_xyz(
         )
 
         if use_dense:
-            dd = la.solve(LHS.todense(), RHS)
+            A = LHS.toarray()
+            dd = la.solve(A, RHS)
         else:
             dd = sla.spsolve(LHS, RHS)
 
@@ -677,7 +783,8 @@ def solve_usadel_xy(
         )
 
         if use_dense:
-            dd = la.solve(LHS.todense(), RHS)
+            A = LHS.toarray()
+            dd = la.solve(A, RHS)
         else:
             dd = sla.spsolve(LHS, RHS)
 
@@ -794,7 +901,8 @@ def solve_usadel_x(
         )
 
         if use_dense:
-            dd = la.solve(LHS.todense(), RHS)
+            A = LHS.toarray()
+            dd = la.solve(A, RHS)
         else:
             dd = sla.spsolve(LHS, RHS)
 

@@ -1,123 +1,145 @@
 """
-Code for Usadel equation solver.
-Andrea Maiani, 2022
+Finite-difference operators for the Usadel equation.
+Andrea Maiani, 2022–2025
 """
+
+from __future__ import annotations
+from typing import Tuple, Optional, Literal
 
 import numpy as np
 from scipy import sparse
+from scipy.sparse import csr_matrix
 
 
 class DifferentialOperators:
     """
-    Empty class that can be filled with differential operators.
+    Container for differential operators acting on a 1D discretized system.
+
+    Attributes
+    ----------
+    Nsites : int
+        Number of spatial sites (determined automatically when the first
+        operator is assigned).
+    D_x, D_y, D_z : csr_matrix
+        First-derivative operators in x,y,z (y,z usually empty for 1D).
+    L : csr_matrix
+        Second-derivative (Laplacian) operator.
+    dx : float
+        Lattice spacing.
     """
 
-    def __init__(self):
-        self._Nsites = None
-        self._D_x = None
-        self._D_y = None
-        self._D_z = None
-        self._L = None
+    def __init__(self) -> None:
+        self._Nsites: Optional[int] = None
+        self._D_x: Optional[csr_matrix] = None
+        self._D_y: Optional[csr_matrix] = None
+        self._D_z: Optional[csr_matrix] = None
+        self._L: Optional[csr_matrix] = None
+        self._dx: Optional[float] = None
+
+    # ------------------------------------------------------------------
+    # Properties
+    # ------------------------------------------------------------------
 
     @property
-    def Nsites(self):
+    def Nsites(self) -> Optional[int]:
         return self._Nsites
 
     @property
-    def D_x(self):
+    def dx(self) -> Optional[float]:
+        return self._dx
+
+    @dx.setter
+    def dx(self, dx: float) -> None:
+        self._dx = float(dx)
+
+    @property
+    def D_x(self) -> Optional[csr_matrix]:
         return self._D_x
 
     @D_x.setter
-    def D_x(self, D_x):
-        if self._Nsites:
-            if (D_x.shape[0] == self._Nsites) and (D_x.shape[1] == self._Nsites):
-                self._D_x = D_x
-            else:
-                raise ("Error.")
-        else:
-            if D_x.shape[0] == D_x.shape[1]:
-                self._D_x = D_x
-                self._Nsites = D_x.shape[0]
-            else:
-                raise ("Error.")
+    def D_x(self, D_x: csr_matrix) -> None:
+        self._assign_matrix("_D_x", D_x)
 
     @property
-    def D_y(self):
+    def D_y(self) -> Optional[csr_matrix]:
         return self._D_y
 
     @D_y.setter
-    def D_y(self, D_y):
-        if self._Nsites:
-            if (D_y.shape[0] == self._Nsites) and (D_y.shape[1] == self._Nsites):
-                self._D_y = D_y
-            else:
-                raise ("Error.")
-        else:
-            if D_y.shape[0] == D_y.shape[1]:
-                self._D_y = D_y
-                self._Nsites = D_y.shape[0]
-            else:
-                raise ("Error.")
+    def D_y(self, D_y: csr_matrix) -> None:
+        self._assign_matrix("_D_y", D_y)
 
     @property
-    def D_z(self):
+    def D_z(self) -> Optional[csr_matrix]:
         return self._D_z
 
-    @D_x.setter
-    def D_z(self, D_z):
-        if self._Nsites:
-            if (D_z.shape[0] == self._Nsites) and (D_z.shape[1] == self._Nsites):
-                self._D_z = D_z
-            else:
-                raise ("Error.")
-        else:
-            if D_z.shape[0] == D_z.shape[1]:
-                self._D_z = D_z
-                self._Nsites = D_z.shape[0]
-            else:
-                raise ("Error.")
+    @D_z.setter
+    def D_z(self, D_z: csr_matrix) -> None:
+        self._assign_matrix("_D_z", D_z)
 
     @property
-    def L(self):
+    def L(self) -> Optional[csr_matrix]:
         return self._L
 
     @L.setter
-    def L(self, L):
-        if self._Nsites:
-            if (L.shape[0] == self._Nsites) and (L.shape[1] == self._Nsites):
-                self._L = L
-            else:
-                raise ("Error.")
+    def L(self, L: csr_matrix) -> None:
+        self._assign_matrix("_L", L)
+
+    def _assign_matrix(self, attr: str, mat: csr_matrix) -> None:
+        """Assign matrix mat to attribute attr, checking shape consistency."""
+        mat = sparse.csr_matrix(mat)
+
+        if self._Nsites is None:
+            if mat.shape[0] != mat.shape[1]:
+                raise ValueError("Operator must be square.")
+            self._Nsites = mat.shape[0]
+            setattr(self, attr, mat)
         else:
-            if L.shape[0] == L.shape[1]:
-                self._L = L
-                self._Nsites = L.shape[0]
-            else:
-                raise ("Error.")
+            if mat.shape != (self._Nsites, self._Nsites):
+                raise ValueError("Shape mismatch for operator.")
+            setattr(self, attr, mat)
 
-    def get_diffops(self):
-        return self.D_x, self.D_y, self.D_z, self.L
+    def get_diffops(self) -> Tuple[csr_matrix, csr_matrix, csr_matrix, csr_matrix, float]:
+        """
+        Return all differential operators and the lattice spacing.
+
+        Returns
+        -------
+        (D_x, D_y, D_z, L, dx)
+        """
+        if self._dx is None:
+            raise ValueError("dx has not been specified in DifferentialOperators.")
+        return self.D_x, self.D_y, self.D_z, self.L, self._dx
 
 
-def gradient(Nx, dx, boundary_condition):
+# ----------------------------------------------------------------------
+# Operators
+# ----------------------------------------------------------------------
 
+def gradient(
+    Nx: int,
+    dx: float,
+    boundary_condition: Literal["open", "periodic"],
+) -> csr_matrix:
     """
-    Generate a discretized gradient matrix.
+    Construct a finite-difference gradient operator (first derivative).
 
-    Parameters:
+    Parameters
+    ----------
     Nx : int
-        Number of points
+        Number of discrete spatial points.
+    dx : float
+        Lattice spacing.
     boundary_condition : {'open', 'periodic'}
-        Boundary condition at the edges of the system.
+        Boundary condition at the ends.
 
     Returns
     -------
-    D_x : array_like
-        Discrete Laplacian.
+    csr_matrix
+        Sparse Nx×Nx matrix implementing d/dx.
     """
 
     D_x = sparse.diags(
-        [-np.ones(Nx - 1), 0, np.ones(Nx - 1)],
+        [-np.ones(Nx - 1), 0.0, np.ones(Nx - 1)],
         [-1, 0, 1],
         shape=(Nx, Nx),
         format="lil",
@@ -125,37 +147,43 @@ def gradient(Nx, dx, boundary_condition):
 
     if boundary_condition == "open":
         D_x[0, 0] = -1
-        D_x[0, 1] = 1
+        D_x[0, 1] = +1
         D_x[-1, -2] = -1
-        D_x[-1, -1] = 1
+        D_x[-1, -1] = +1
 
     elif boundary_condition == "periodic":
         D_x[0, -1] = -1
-        D_x[0, 1] = 1
+        D_x[0, 1] = +1
         D_x[-1, -2] = -1
-        D_x[-1, 0] = 1
+        D_x[-1, 0] = +1
 
     else:
-        raise ("Not supported")
+        raise ValueError("Supported BCs: 'open', 'periodic'.")
 
-    D_x = D_x / (2 * dx)
-    return D_x.tocsr()
+    return (D_x / (2 * dx)).tocsr()
 
 
-def laplacian(Nx, dx, boundary_condition):
+def laplacian(
+    Nx: int,
+    dx: float,
+    boundary_condition: Literal["open", "periodic"],
+) -> csr_matrix:
     """
-    Generate a discretized Laplacian matrix with boundary conditions.
+    Construct a finite-difference Laplacian operator (second derivative).
 
-    Parameters:
+    Parameters
+    ----------
     Nx : int
-        Number of points
+        Number of discrete spatial points.
+    dx : float
+        Lattice spacing.
     boundary_condition : {'open', 'periodic'}
-        Boundary condition at the edges of the system.
+        Boundary condition at the ends.
 
     Returns
     -------
-    L_x : array_like
-        Discrete Laplacian.
+    csr_matrix
+        Sparse Nx×Nx Laplacian matrix.
     """
 
     L_x = sparse.diags(
@@ -170,25 +198,66 @@ def laplacian(Nx, dx, boundary_condition):
         L_x[-1, -1] = -1
 
     elif boundary_condition == "periodic":
-        L_x[0, -1] = 1
-        L_x[-1, 0] = 1
+        L_x[0, -1] = +1
+        L_x[-1, 0] = +1
 
     else:
-        raise ("Not supported")
+        raise ValueError("Supported BCs: 'open', 'periodic'.")
 
-    L_x = L_x / dx**2
-
-    return L_x.tocsr()
+    return (L_x / dx**2).tocsr()
 
 
-def trivial_diffops():
+# ----------------------------------------------------------------------
+# Helper constructors
+# ----------------------------------------------------------------------
+
+def make_1d_diffops(
+    Nx: int,
+    dx: float,
+    boundary: Literal["open", "periodic"] = "open",
+) -> DifferentialOperators:
     """
-    Generate a trivial DifferentialOperators class instance.
+    Construct a DifferentialOperators object for a 1D grid.
+
+    Parameters
+    ----------
+    Nx : int
+        Number of spatial sites.
+    dx : float
+        Lattice spacing.
+    boundary : {'open', 'periodic'}
+        Boundary condition for gradient and Laplacian.
+
+    Returns
+    -------
+    DifferentialOperators
+        Fully configured differential operators container.
     """
     do = DifferentialOperators()
-    do.D_x = np.zeros((1, 1), dtype=float)
-    do.D_y = np.zeros((1, 1), dtype=float)
-    do.D_z = np.zeros((1, 1), dtype=float)
-    do.L = np.zeros((1, 1), dtype=float)
+    do.dx = dx
 
+    do.D_x = gradient(Nx, dx, boundary)
+    do.D_y = sparse.csr_matrix((Nx, Nx))
+    do.D_z = sparse.csr_matrix((Nx, Nx))
+    do.L = laplacian(Nx, dx, boundary)
+
+    return do
+
+
+def trivial_diffops() -> DifferentialOperators:
+    """
+    Create a trivial DifferentialOperators instance for 0D (single-site).
+
+    All operators are 1×1 zero matrices and dx is irrelevant.
+
+    Returns
+    -------
+    DifferentialOperators
+    """
+    do = DifferentialOperators()
+    do.dx = 1.0
+    do.D_x = sparse.csr_matrix([[0.0]])
+    do.D_y = sparse.csr_matrix([[0.0]])
+    do.D_z = sparse.csr_matrix([[0.0]])
+    do.L = sparse.csr_matrix([[0.0]])
     return do

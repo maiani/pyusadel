@@ -103,7 +103,7 @@ def fit_nis(
             free_params_ubounds.append(value[2])
 
         elif len(value) != 1:
-            raise Error("Input not valid")
+            raise ValueError("Input not valid")
 
     # Setup the variable for the Usadel model
     do = trivial_diffops()

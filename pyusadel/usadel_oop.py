@@ -1,12 +1,9 @@
 """
 Code for Usadel equation solver.
-Andrea Maiani, 2022-2023
+Andrea Maiani, 2022-2025
 """
 
 import numpy as np
-from numpy import linalg as la
-from scipy import sparse
-from scipy.sparse import linalg as sla
 from .findiff import DifferentialOperators
 from .usadel import gen_assemble_fns, solve_usadel, solve_usadel_self_consistent
 from typing import Tuple, Optional, Union
@@ -23,45 +20,22 @@ def check_array(
     Checks if an input array has the correct shape and data type.
     If None is passed as first argument, it creates a default array
     with the right shape and default value.
-
-    Parameters
-    ----------
-    arr : Union[np.ndarray, None]
-        The input array to check. If None, a new array is created with
-        the specified shape and dtype.
-    shape : Tuple[int, ...]
-        The expected shape of the array.
-    name : str
-        The name of the array (used in error messages).
-    dtype : type, optional
-        The expected data type of the array, by default float.
-    dvalue : float, optional
-        The default value to use when creating a new array, by default 0.0.
-
-    Returns
-    -------
-    np.ndarray
-        The input array if it has the correct shape and data type, or a
-        new array with the specified shape and dtype if arr is None.
     """
 
     if arr is None:
-        arr = np.ones(shape, dtype=dtype) * dvalue
-    elif not isinstance(arr, np.ndarray):
-        raise ValueError(f"{name} must be a numpy array")
-    elif arr.shape != shape:
+        return np.ones(shape, dtype=dtype) * dvalue
+
+    # Safely coerce to numpy array of the desired dtype
+    arr = np.asarray(arr, dtype=dtype)
+
+    if arr.shape != shape:
         raise ValueError(f"{name} must have shape {shape}")
-    elif arr.dtype != dtype:
-        raise ValueError(f"{name} must have type {dtype}")
 
     return arr
 
 
 class UsadelProblem:
-    """Simple way to define and solve a Usadel problem.
-
-    This class is is a wrapper for the procedural functions.
-    """
+    """Simple way to define and solve a Usadel problem."""
 
     def __init__(
         self,
@@ -77,35 +51,12 @@ class UsadelProblem:
         T: float = 0,
         T_c0: float = 1,
         Gamma: float = 1e-3,
+        kl_left_gammaB: Optional[float] = None,
+        kl_right_gammaB: Optional[float] = None,
         use_dense: bool = False,
     ):
         """
-        Parameters
-        ----------
-        Nsites: int
-            Number of sites in the system.
-        diff_ops: DifferentialOperators
-            Differential operators on the lattice.
-        h_x: np.ndarray
-            Zeeman field (x component)
-        h_y: np.ndarray
-            Zeeman field (y component)
-        h_z: np.ndarray
-            Zeeman field (z component)
-        tau_sf_inv: np.ndarray
-            Inverse of spin-flip scattering time.
-        tau_so_inv: np.ndarray
-            Inverse of spin-orbit scattering time.
-        tau_ob_inv: np.ndarray
-            Inverse of orbital depairing scattering time.
-        D: float
-            Diffusion constant.
-        T: float
-            Temperature.
-        T_c0: float (default 1)
-            Critical temperature in absence of pair-breaking.
-        Gamma: float (default 0)
-            Dynes parameter.
+        Basic Usadel problem setup.
         """
 
         self.Nsites = Nsites
@@ -124,10 +75,13 @@ class UsadelProblem:
         self.T = T
         self.T_c0 = T_c0
         self.Gamma = Gamma
-
         self.use_dense = use_dense
 
-        self.Delta = np.ones((Nsites), dtype=float)
+        # KL boundary condition parameters
+        self.kl_left_gammaB = kl_left_gammaB
+        self.kl_right_gammaB = kl_right_gammaB
+
+        self.Delta = np.ones((Nsites,), dtype=float)
         self.F_sn = None
 
         # Imaginary frequency axis
@@ -145,7 +99,7 @@ class UsadelProblem:
         self.M_z_r = None
         self.M_0_r = None
 
-        # Generate assembly functions
+        # Assemble operators
         self.assemble_fns = gen_assemble_fns(
             D=self.D,
             diff_ops=self.diff_ops,
@@ -157,16 +111,14 @@ class UsadelProblem:
             tau_ob_inv=self.tau_ob_inv,
             Gamma=self.Gamma,
             use_dense=self.use_dense,
+            kl_left_gammaB=self.kl_left_gammaB,
+            kl_right_gammaB=self.kl_right_gammaB,
         )
 
-        # Calculate useful scales
         self._calculate_scales()
 
     def _calculate_scales(self):
-        """
-        Calculate useful scales.
-        """
-
+        """Calculate basic scales."""
         self.Delta_00 = self.T_c0 * 1.7652
         self.h_c0 = self.Delta_00 / np.sqrt(2)
         self.xi_00 = np.sqrt(self.D / self.Delta_00)
@@ -178,71 +130,45 @@ class UsadelProblem:
         h_z: np.ndarray | None = None,
         tau_sf_inv: np.ndarray | None = None,
         tau_so_inv: np.ndarray | None = None,
+        tau_ob_inv: np.ndarray | None = None,
         D: float | None = None,
         T: float | None = None,
         T_c0: float | None = None,
         Gamma: float | None = None,
+        kl_left_gammaB: float | None = None,
+        kl_right_gammaB: float | None = None,
     ):
-        """
-        Update the parameters of the problem.
-
-        Parameters
-        ----------
-        h_x: np.ndarray
-            Zeeman field (x component)
-        h_y: np.ndarray
-            Zeeman field (y component)
-        h_z: np.ndarray
-            Zeeman field (z component)
-        tau_sf_inv: np.ndarray
-            Inverse of spin-flip scattering time.
-        tau_so_inv: np.ndarray
-            Inverse of spin-orbit scattering time.
-        D: float
-            Diffusion constant.
-        T: float
-            Temperature.
-        T_c0: float
-            Critical temperature in absence of pair-breaking.
-        Gamma: float
-            Dynes parameter.
-        """
+        """Update parameters and regenerate assembly functions."""
 
         if h_x is not None:
             if h_x.shape != (self.Nsites,):
                 raise Exception("Dimensions doesn't match.")
-            else:
-                self.h_x = h_x
+            self.h_x = h_x
 
         if h_y is not None:
             if h_y.shape != (self.Nsites,):
                 raise Exception("Dimensions doesn't match.")
-            else:
-                self.h_y = h_y
+            self.h_y = h_y
 
         if h_z is not None:
             if h_z.shape != (self.Nsites,):
                 raise Exception("Dimensions doesn't match.")
-            else:
-                self.h_z = h_z
+            self.h_z = h_z
 
         if tau_sf_inv is not None:
             if tau_sf_inv.shape != (self.Nsites,):
                 raise Exception("Dimensions doesn't match.")
-            else:
-                self.tau_sf_inv = tau_sf_inv
+            self.tau_sf_inv = tau_sf_inv
 
         if tau_so_inv is not None:
             if tau_so_inv.shape != (self.Nsites,):
                 raise Exception("Dimensions doesn't match.")
-            else:
-                self.tau_so_inv = tau_so_inv
+            self.tau_so_inv = tau_so_inv
 
         if tau_ob_inv is not None:
             if tau_ob_inv.shape != (self.Nsites,):
                 raise Exception("Dimensions doesn't match.")
-            else:
-                self.tau_ob_inv = tau_ob_inv
+            self.tau_ob_inv = tau_ob_inv
 
         if D is not None:
             self.D = D
@@ -256,7 +182,13 @@ class UsadelProblem:
         if Gamma is not None:
             self.Gamma = Gamma
 
-        # Generate assembly functions
+        if kl_left_gammaB is not None:
+            self.kl_left_gammaB = kl_left_gammaB
+
+        if kl_right_gammaB is not None:
+            self.kl_right_gammaB = kl_right_gammaB
+
+        # Rebuild assemble_fns to reflect the new parameters / KL BC
         self.assemble_fns = gen_assemble_fns(
             D=self.D,
             diff_ops=self.diff_ops,
@@ -268,9 +200,10 @@ class UsadelProblem:
             tau_ob_inv=self.tau_ob_inv,
             Gamma=self.Gamma,
             use_dense=self.use_dense,
+            kl_left_gammaB=self.kl_left_gammaB,
+            kl_right_gammaB=self.kl_right_gammaB,
         )
 
-        # Calculate useful scales
         self._calculate_scales()
 
     def solve_self_consistent(
@@ -283,8 +216,26 @@ class UsadelProblem:
         max_iter_Delta: int = 100,
         verbose: bool = False,
     ):
+        """Solve the self-consistent Usadel equation."""
+
+        # Regenerate assemble_fns to guarantee consistency with current params/KL BCs
+        self.assemble_fns = gen_assemble_fns(
+            D=self.D,
+            diff_ops=self.diff_ops,
+            h_x=self.h_x,
+            h_y=self.h_y,
+            h_z=self.h_z,
+            tau_so_inv=self.tau_so_inv,
+            tau_sf_inv=self.tau_sf_inv,
+            tau_ob_inv=self.tau_ob_inv,
+            Gamma=self.Gamma,
+            use_dense=self.use_dense,
+            kl_left_gammaB=self.kl_left_gammaB,
+            kl_right_gammaB=self.kl_right_gammaB,
+        )
+
         if not omega_N:
-            # TODO: implement something smartere here
+            # TODO: implement something smarter here
             omega_N = 100
 
         (
@@ -316,16 +267,16 @@ class UsadelProblem:
     def set_real_omega_ax(self, omega_min, omega_max, omega_N):
         """
         Set the energy axis (real frequencies).
-        Parameters:
-        -------
-        omega_min : float
-            Minimum energy
-        omega_max : float
-            Minimum energy
-        omega_N : int
-            Number of points
-        """
 
+        Parameters
+        ----------
+        omega_min : float
+            Minimum energy.
+        omega_max : float
+            Maximum energy.
+        omega_N : int
+            Number of points.
+        """
         self._omega_ax_r = -1j * np.linspace(omega_min, omega_max, omega_N)
         self.theta_r = np.ones((omega_N, self.Nsites), dtype=complex)
         self.M_x_r = np.zeros((omega_N, self.Nsites), dtype=complex)
@@ -333,9 +284,7 @@ class UsadelProblem:
         self.M_z_r = np.zeros((omega_N, self.Nsites), dtype=complex)
 
     def get_omega_ax_r(self):
-        """
-        Returns the energy axis (real frequencies).
-        """
+        """Return the real-energy axis."""
         return np.real(1j * self._omega_ax_r)
 
     def solve_spectral(
@@ -345,10 +294,7 @@ class UsadelProblem:
         max_iter: int = 1000,
         print_exit_status: bool = False,
     ):
-        """
-        Solve the Usadel equations for real frequencies.
-        """
-
+        """Solve the Usadel equations for real frequencies."""
         solve_usadel(
             assemble_fns=self.assemble_fns,
             h_x=self.h_x,
@@ -369,15 +315,11 @@ class UsadelProblem:
         self.M_0_r = np.sqrt(1 + self.M_x_r**2 + self.M_y_r**2 + self.M_z_r**2)
 
     def get_ldos(self):
-        """
-        Returns the local density of states.
-        """
+        """Return the local density of states."""
         return np.real(self.M_0_r * np.cos(self.theta_r))
 
     def get_spin_resolved_ldos(self, direction: str):
-        """
-        Returns the spin-resolved local density of states.
-        """
+        """Return spin-resolved LDOS along x, y or z."""
         if direction == "x":
             return (
                 np.real(
@@ -418,20 +360,13 @@ class UsadelProblem:
                 / 2,
             )
         else:
-            raise Exception("Error.")
+            raise Exception("Error: direction must be 'x', 'y', or 'z'.")
 
     def get_anomalous_correlator(self):
         """
-        Return the anomalous correlator.
-
-        Returns:
-        -------
-            (Delta_0, Delta_x, Delta_y, Delta_z): (np.ndarray, np.ndarray, np.ndarray, np.ndarray)
-
-            The anomalous correlator.
-
+        Return the anomalous correlator components
+        (singlet and triplet vector).
         """
-
         return (
             np.real(self.M_0_r * np.sin(self.theta_r)),
             np.real(-1j * self.M_x_r * np.cos(self.theta_r)),
@@ -441,13 +376,12 @@ class UsadelProblem:
 
     def get_spin_polarization(self):
         """
-        Return the local spin-polarization at finite temperature.
+        Return the local spin polarization at finite temperature.
 
-        Returns:
-            (S_x, S_y, S_z): (np.ndarray, np.ndarray, np.ndarray)
-            The local polarization
+        Returns
+        -------
+        (S_x, S_y, S_z) : np.ndarray
         """
-
         return (2 * np.pi * self.T) * np.array(
             (
                 np.sum(1j * self.M_x_i * np.sin(self.theta_i), axis=0).real,

@@ -1,6 +1,15 @@
+"""
+Utility functions for thermal broadening and grid manipulation
+used in the Usadel solver.
+
+Andrea Maiani, 2022–2025
+"""
+
+from __future__ import annotations
 import numpy as np
+from numpy.typing import ArrayLike
 from scipy.interpolate import interp1d
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Optional, Tuple, Union
 
 try:
     import numba
@@ -12,7 +21,6 @@ else:
 if numba_available:
     jit = numba.jit
 else:
-
     def jit(fn):
         return fn
 
@@ -61,39 +69,51 @@ def thermal_broadening(e_ax: np.ndarray, y: np.ndarray, T: float) -> np.ndarray:
 def resize_linspace(
     linspace_arr: np.ndarray,
     new_length: int,
-    filling_value: Union[float, None] = np.nan,
-    y: np.ndarray = None,
-) -> Union[np.ndarray, tuple]:
+    filling_value: Optional[float] = np.nan,
+    y: Optional[np.ndarray] = None,
+) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
     """
-    Given a numpy array generated using linspace_arr, this function resizes the
-    array by a given new length. If a y array is provided, it is also resized
-    accordingly.
+    Resize a linspace-like array and optionally resize associated data y(x).
 
-    Args:
-    linspace_arr (numpy.ndarray): A 1D numpy array generated using linspace
-    new_length (int): The new length to resize the array to
-    y (numpy.ndarray, optional): A 1D numpy array containing values evaluated
-        using linspace_arr as x.
-    fill_value (float, optional): The value to use for filling the new elements in y.
+    This is symmetric resizing: new points are added or removed equally
+    on the left and right of the array.
 
-    Returns:
-    numpy.ndarray: A 1D numpy array that is the resized version of linspace_arr
-    numpy.ndarray or None: If y is provided, a 1D numpy array that is the resized
-        version of y, with the fill_value inserted or removed as appropriate. If y is
-        not provided, None is returned.
+    Parameters
+    ----------
+    linspace_arr : np.ndarray
+        Original 1D linspace array.
+    new_length : int
+        Desired length of the resized output.
+    filling_value : float or None, optional
+        Value to use when padding y during upsizing.
+        Ignored when downsizing.
+    y : np.ndarray, optional
+        Array of values defined on linspace_arr. If provided, it is resized
+        in a manner consistent with linspace_arr.
+
+    Returns
+    -------
+    np.ndarray or (np.ndarray, np.ndarray)
+        If y is None:
+            resized_linspace_arr
+        If y is provided:
+            (resized_linspace_arr, resized_y_arr)
+
+    Notes
+    -----
+    - Upsizing adds equally many points to both ends.
+    - Downsizing removes equally many points from both ends.
     """
-    # Get the length of the original linspace array
     orig_length = len(linspace_arr)
-
-    # Get the spacing between elements in the original linspace array
     spacing = linspace_arr[1] - linspace_arr[0]
 
+    # -----------------
+    # Upsizing
+    # -----------------
     if new_length > orig_length:
-        # Upsize the arrays
-        # Calculate the number of elements to add to both ends of the arrays
         num_elems = int((new_length - orig_length) / 2)
 
-        # Extend the arrays in both directions by num_elems elements
+        # Extend left and right
         resized_linspace_arr = np.concatenate(
             [
                 np.linspace(
@@ -109,29 +129,29 @@ def resize_linspace(
                 ),
             ]
         )
+
         if y is not None:
-            resized_y_arr = np.full(new_length, fill_value, dtype=y.dtype)
+            resized_y_arr = np.full(new_length, filling_value, dtype=y.dtype)
             resized_y_arr[num_elems : num_elems + orig_length] = y
             return resized_linspace_arr, resized_y_arr
-        else:
-            return resized_linspace_arr
+        return resized_linspace_arr
 
+    # -----------------
+    # Downsizing
+    # -----------------
     elif new_length < orig_length:
-        # Downsize the arrays
-        # Calculate the number of elements to remove from both ends of the arrays
         num_elems = int((orig_length - new_length) / 2)
-
-        # Remove num_elems elements from both ends of the arrays
         resized_linspace_arr = linspace_arr[num_elems:-num_elems]
+
         if y is not None:
             resized_y_arr = y[num_elems:-num_elems]
             return resized_linspace_arr, resized_y_arr
-        else:
-            return resized_linspace_arr
+        return resized_linspace_arr
 
+    # -----------------
+    # No change
+    # -----------------
     else:
-        # Return the original arrays if new_length is the same as the original length
         if y is not None:
             return linspace_arr, y
-        else:
-            return linspace_arr
+        return linspace_arr
