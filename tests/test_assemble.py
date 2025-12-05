@@ -4,7 +4,7 @@
 #     h_x,
 #     h_y,
 #     h_z,
-# ) 
+# )
 
 # h_x = np.array([0.2])
 # h_y = np.array([0.0])
@@ -15,7 +15,7 @@
 #     h_x,
 #     h_y,
 #     h_z,
-# ) 
+# )
 # theta, M_0, M_x, M_y, M_z, Delta, omega_n = np.array([0.50]), np.array([0.40]), np.array([0.1]), np.array([0]), np.array([0]), np.array([1]), np.array([0.250])
 
 # print(af['f0'](theta, M_0, M_x, M_y, M_z, Delta, omega_n))
@@ -36,7 +36,7 @@
 #     h_x,
 #     h_y,
 #     h_z,
-# ) 
+# )
 # theta, M_0, M_x, M_y, M_z, Delta, omega_n = np.array([0.50]),np.array([0.40]), np.array([0]), #np.array([0.1]), np.array([0]), np.array([1]), np.array([0.250])
 
 # print(af['f0'](theta, M_0, M_x, M_y, M_z, Delta, omega_n))
@@ -57,7 +57,7 @@
 #     h_x,
 #     h_y,
 #     h_z,
-# ) 
+# )
 # theta, M_0, M_x, M_y, M_z, Delta, omega_n = np.array([0.50]),np.array([0.40]), np.array([0]), np.array([0.0]), np.array([0.1]), np.array([1]), np.array([0.250])
 
 # print(af['f0'](theta, M_0, M_x, M_y, M_z, Delta, omega_n))

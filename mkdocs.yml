@@ -1,0 +1,60 @@
+site_name: pyUsadel Documentation
+site_url: ""
+repo_url: "https://github.com/maiani/pyusadel"
+repo_name: "maiani/pyusadel"
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.annotate
+    - content.code.copy
+    - content.math
+
+nav:
+  - Home: index.md
+  - Theory: theory.md
+  - Examples: 
+      - examples/index.md
+      - 0D example: examples/usadel_0D.ipynb
+      - 1D example: examples/usadel_1D.ipynb
+      - 1D with KL BC: examples/usadel_1D_KLBC.ipynb
+      - 2D example: examples/usadel_2D.ipynb
+      - Self-consistency: examples/self_consistency.ipynb
+      - NIS fitting: examples/nis_fit.ipynb
+      - Other:
+          - Averaging: examples/other/averaging.ipynb
+  - API: api.md
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.highlight
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_root_heading: true
+            show_source: true
+            docstring_style: numpy
+            line_length: 80
+  - mkdocs-jupyter:
+      execute: false     # or true if you want to run notebooks during build
+
+extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - scripts/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+extra_css:
+  - stylesheets/extra.css

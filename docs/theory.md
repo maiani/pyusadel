@@ -3,9 +3,10 @@
 ## Introduction to Usadel equations
 In the time-reversed hole basis, $\psi = (\psi_\uparrow, \psi_\downarrow, -\psi_\downarrow, \psi_\uparrow)$, the Usadel equation in Matsubara representation reads
 $$
-D \nabla\cdot(\check{g}\nabla\check{g}) - [\omega_n \tau_3 \sigma_0 + i \boldsymbol{h}\cdot\boldsymbol{\sigma} \tau_3 + \check{\Delta} +\check{\Sigma}, \check{g}] = 0
-    $$
-that needs to be complemented with the normalization constraint $\check{g}^2 = 1$. 
+\label{eq:usadel}
+D \nabla\cdot(\check{g}\nabla\check{g}) - [\omega_n \tau_3 \sigma_0 + i \boldsymbol{h}\cdot\boldsymbol{\sigma} \tau_3 + \check{\Delta} +\check{\Sigma}, \check{g}] = 0.
+$$
+Eq.\eqref{eq:usadel} needs to be complemented with the normalization constraint $\check{g}^2 = 1$. 
 Moreover, since we are considering a conventional singlet s-wave pairing mechanism, we set $\check{\Delta}= \Delta \tau_1$.
 
 In the self-energy term, we include spin- and charge-imbalance relaxation due to spin-flipping scattering with magnetic impurities and spin-orbit $\Sigma = \Sigma_\mathrm{sf} + \Sigma_\mathrm{so}$ with
@@ -156,8 +157,3 @@ $$
 \frac{\delta f_1}{\delta M_y} = D\left( M_x \nabla^2 \frac{M_y}{M_0} -  \frac{M_y}{M_0} \nabla^2 \right) -2  \sin\theta h_x \frac{M_y}{M_0} + \Big[\frac{1}{\tau_\mathrm{so}} + \Big(\frac{1}{2 \tau_\mathrm{sf}} + \frac{4}{\tau_\mathrm{ob}}\Big)\cos(2 \theta)\Big] \frac{M_x M_y}{M_0}
 $$
 and similarly for $\delta f_2$.
-
-
-```python
-
-```

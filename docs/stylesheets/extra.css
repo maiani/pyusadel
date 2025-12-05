@@ -1,0 +1,10 @@
+/* Center block equations with better spacing */
+mjx-container[jax="CHTML"] {
+    font-size: 110%;
+    margin: 1em 0;
+}
+
+/* Stretch notebook cells to full page width */
+.jp-Notebook, .jp-MarkdownCell {
+    max-width: 100%;
+}

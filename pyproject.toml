@@ -1,0 +1,141 @@
+##############################################
+# Build system
+##############################################
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+
+##############################################
+# Project metadata (PEP 621)
+##############################################
+
+[project]
+name = "pyusadel"
+version = "0.3.0"
+description = "Usadel equation solver for diffusive superconductors"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+
+authors = [
+    { name = "Andrea Maiani", email = "andreamaiani@gmail.com" }
+]
+
+requires-python = ">=3.11"
+
+dependencies = [
+    "numpy>=1.21",
+    "scipy>=1.7"
+]
+
+# Optional: Useful when publishing on PyPI
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+[project.urls]
+Homepage = "https://github.com/maiani/pyusadel"
+Repository = "https://github.com/maiani/pyusadel"
+Issues = "https://github.com/maiani/pyusadel/issues"
+Documentation = "https://maiani.github.io/pyusadel/"
+
+
+##############################################
+# Optional dependencies
+##############################################
+
+[project.optional-dependencies]
+extra = ["numba>=0.56"]
+docs = [
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.24",
+    "pymdown-extensions>=10.0",
+    "mkdocs-jupyter>=0.24",
+]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "coverage",
+    "ruff>=0.4",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+    "pymdown-extensions",
+]
+
+
+##############################################
+# setuptools: package discovery
+##############################################
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pyusadel*"]
+
+
+##############################################
+# Ruff — Lint + Format
+##############################################
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-include = ["*.ipynb", "*.md", "*.toml", "*.yml", "*.yaml", "*.json"]
+
+# Enable Ruff formatter
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+docstring-code-line-length = 88
+
+# Linting rules
+[tool.ruff.lint]
+select = ["E", "F", "I"]   # pyflakes, pycodestyle, isort
+fixable = ["ALL"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-single-line = false
+
+
+##############################################
+# pytest configuration
+##############################################
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "--strict-markers",
+    "--disable-warnings",
+    "--maxfail=1"
+]
+testpaths = [
+    "tests"
+]
+
+
+##############################################
+# Coverage
+##############################################
+
+[tool.coverage.run]
+branch = true
+source = ["pyusadel"]
+
+[tool.coverage.report]
+show_missing = true
+
+##############################################
+# MkDocs — documentation build integration
+##############################################
+
+[tool.mkdocs]
+# Empty placeholder to signal that this project uses mkdocs.
+# Actual config lives in mkdocs.yml.
